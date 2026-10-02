@@ -1,0 +1,5 @@
+{"q":"notour=1","steps":[
+ {"eval":"(()=>{const S=__sim.sim,u=__sim.uni;const d=S.getDestinations(true).systems.find(x=>x.name==='Alpha Centauri');S.setCourseSystem(d);S.setTimeAuto(true);return {n:d&&d.name,ly:d&&d.distLy}})()","print":true},
+ {"until":"!__sim.sim.course || (__sim.sim.course.kind==='body')","timeout":420,"poll":4,"log":"(()=>{const S=__sim.sim,h=S.hud(),w=S.warp;return {where:h.where,ph:S.course&&S.course.phase,warpOn:w.on,c:+(w.on?w.c:h.c).toPrecision(4),step:w.step,form:+w.form.toFixed(2),capC:isFinite(w.capC)?+w.capC.toPrecision(3):'inf',K:Math.round(h.K),distLy:S.course&&S.course.distKm?+(S.course.distKm/9.4607e12).toFixed(4):null,trip:Math.round(h.trip),msgs:S.messages.map(m=>m.msg)}})()","shot":"f2_trip","shotEvery":15},
+ {"eval":"(()=>{const S=__sim.sim;return {sys:S.system&&S.system.name,hud:S.hud(),speedC:S.speed/299792.458,posKm:Math.hypot(...S.sysPos())/1.496e8,hp:S.system&&S.system.heliopauseKm/1.496e8}})()","print":true,"wait":2,"shot":"f2_arrived"}
+]}

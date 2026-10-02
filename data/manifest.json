@@ -1,0 +1,501 @@
+{
+  "datasets": {
+    "stars": {
+      "description": "Star catalogue: Sun + Hipparcos brightest N + every star inside the near radius (Gaia DR3 fills what Hipparcos lacks)",
+      "recordLayout": "24 bytes little-endian: f32 x,y,z [pc, ICRS equatorial, relative to Sun, at epoch] | i16 absMag_V*1000 | u16 Teff[K] | u8 flags | u8 lumClass | u16 reserved | u32 HIP",
+      "flagBits": {
+        "DIST_ESTIMATED": 1,
+        "GAIA": 2,
+        "COLOR_FROM_PHOT": 4,
+        "SPTYPE_DERIVED": 8,
+        "HAS_PLANETS": 16,
+        "SUN": 32,
+        "TEFF_DEFAULTED": 64
+      },
+      "lumClass": {
+        "V": 0,
+        "IV": 1,
+        "III": 2,
+        "II": 3,
+        "I": 4,
+        "WD": 5,
+        "UNK": 6
+      },
+      "sources": [
+        {
+          "name": "Hipparcos Catalogue (ESA 1997), CDS I/239 hip_main.dat",
+          "url": "https://cdsarc.cds.unistra.fr/ftp/I/239/hip_main.dat",
+          "version": "ESA SP-1200, epoch J1991.25",
+          "sha256": "58ceabb104d647160d9437ce6e513a02a036bb4ad9f8879a5a22fd52943616e0",
+          "license": "public (ESA/CDS)"
+        },
+        {
+          "name": "Gaia DR3 gaia_source (+ hipparcos2_best_neighbour), ESA Gaia Archive TAP",
+          "url": "https://gea.esac.esa.int/tap-server/tap/sync",
+          "version": "Gaia DR3, epoch J2016.0",
+          "queriedAt": "2026-10-01T18:08:39.041Z",
+          "rows": 10017,
+          "license": "CC BY-SA 3.0 IGO (ESA/Gaia/DPAC)"
+        },
+        {
+          "name": "IAU Catalog of Star Names (WGSN)",
+          "url": "https://www.pas.rochester.edu/~emamajek/WGSN/IAU-CSN.txt",
+          "status": "ok",
+          "matched": 406
+        },
+        {
+          "name": "SIMBAD identifier lookup (CDS)",
+          "url": "https://simbad.cds.unistra.fr/simbad/sim-tap/sync",
+          "status": "ok",
+          "matched": 463
+        }
+      ],
+      "method": "Positions propagated linearly by proper motion to the build epoch. Distance = 1/parallax where the Hipparcos parallax S/N ≥ hipMinParallaxSNR, else a spectro-photometric estimate (flag bit 1). Temperature from the spectral type (calibrated dwarf/giant/supergiant sequences), else from B-V (Hipparcos) or BP-RP (Gaia) (flag bit 4). Absolute V magnitude from V and distance (no extinction correction).",
+      "stats": {
+        "total": 108721,
+        "withinRadius": 10350,
+        "hipparcosBright": 100000,
+        "hipparcosNearExtra": 839,
+        "gaiaSample": 10017,
+        "gaiaNew": 7800,
+        "gaiaUpgraded": 2202,
+        "gaiaDedupByPosition": 341,
+        "binaryGroupsHarmonised": 724,
+        "binaryStarsHarmonised": 1462,
+        "gaiaStatus": "ok",
+        "distEstimated": 33565,
+        "colourFromPhotometry": 8290,
+        "teffDefaulted": 359,
+        "faintestBrightV": 9.55
+      }
+    },
+    "exoplanets": {
+      "description": "Confirmed planets whose host star is present in stars.bin",
+      "sources": [
+        {
+          "name": "NASA Exoplanet Archive, table pscomppars (Planetary Systems Composite Parameters)",
+          "url": "https://exoplanetarchive.ipac.caltech.edu/TAP/sync",
+          "retrievedAt": "2026-10-01T18:08:39.041Z",
+          "rows": 6372,
+          "license": "NASA/IPAC, public"
+        }
+      ],
+      "stats": {
+        "rows": 6372,
+        "matchedHip": 754,
+        "matchedGaia": 85,
+        "matchedPos": 55,
+        "unmatched": 3885,
+        "hostsTotal": 4779,
+        "hostsMatched": 894,
+        "planetsKept": 1299,
+        "planetsTotal": 6372,
+        "hostsKept": 894
+      }
+    },
+    "ephemeris": {
+      "description": "Sun, 8 planets, dwarf planets and major moons: orbital elements and physical constants",
+      "sources": [
+        {
+          "name": "JPL Solar System Dynamics — Approximate Positions of the Planets (Standish & Williams), Tables 1, 2a, 2b",
+          "url": "https://ssd.jpl.nasa.gov/planets/approx_pos.html",
+          "retrievedAt": "2026-10-01T18:08:39.041Z"
+        },
+        {
+          "name": "JPL Horizons API — moon osculating elements (ecliptic J2000) and planet/Sun physical data",
+          "url": "https://ssd.jpl.nasa.gov/api/horizons.api",
+          "retrievedAt": "2026-10-01T18:08:39.041Z",
+          "epoch": "2026-10-01"
+        },
+        {
+          "name": "JPL Small-Body Database API — dwarf planet orbits and physical parameters",
+          "url": "https://ssd-api.jpl.nasa.gov/sbdb.api",
+          "retrievedAt": "2026-10-01T18:08:39.041Z"
+        },
+        {
+          "name": "JPL Planetary Satellite Physical Parameters (GM, mean radius)",
+          "url": "https://ssd.jpl.nasa.gov/sats/phys_par/",
+          "retrievedAt": "2026-10-01T18:08:39.041Z"
+        }
+      ],
+      "curated": "Rotation periods / pole directions (IAU WGCCRE 2015), geometric albedos (NASA fact sheets) and ring boundaries are hand-entered constants listed in tools/lib/ephemeris.mjs (CURATED, MOON_ALBEDO, RINGS); each body records which of R/GM/albedo came from a download (src) and which from the curated table.",
+      "stats": {
+        "bodies": 36,
+        "planets": 8,
+        "dwarfPlanets": 5,
+        "moons": 22,
+        "epochJD": 2461314.5,
+        "epoch": "2026-10-01",
+        "complete": true
+      }
+    },
+    "textures": {
+      "description": "Planet surface maps packed as data URIs in assets/textures.js (so the page works from file://)",
+      "sources": [
+        {
+          "name": "Solar System Scope textures",
+          "url": "https://www.solarsystemscope.com/textures/",
+          "license": "CC BY 4.0 — © Solar System Scope, based on NASA elevation and imagery data"
+        }
+      ],
+      "stats": {
+        "count": 14,
+        "files": [
+          {
+            "stem": "sun",
+            "file": "2k_sun.jpg",
+            "bytes": 822427,
+            "res": "2k"
+          },
+          {
+            "stem": "mercury",
+            "file": "2k_mercury.jpg",
+            "bytes": 872555,
+            "res": "2k"
+          },
+          {
+            "stem": "venus_surface",
+            "file": "2k_venus_surface.jpg",
+            "bytes": 885075,
+            "res": "2k"
+          },
+          {
+            "stem": "venus_atmosphere",
+            "file": "2k_venus_atmosphere.jpg",
+            "bytes": 229696,
+            "res": "2k"
+          },
+          {
+            "stem": "earth_daymap",
+            "file": "8k_earth_daymap.jpg",
+            "bytes": 4565076,
+            "res": "8k"
+          },
+          {
+            "stem": "earth_nightmap",
+            "file": "2k_earth_nightmap.jpg",
+            "bytes": 255287,
+            "res": "2k"
+          },
+          {
+            "stem": "earth_clouds",
+            "file": "2k_earth_clouds.jpg",
+            "bytes": 965676,
+            "res": "2k"
+          },
+          {
+            "stem": "moon",
+            "file": "2k_moon.jpg",
+            "bytes": 1053869,
+            "res": "2k"
+          },
+          {
+            "stem": "mars",
+            "file": "2k_mars.jpg",
+            "bytes": 750547,
+            "res": "2k"
+          },
+          {
+            "stem": "jupiter",
+            "file": "2k_jupiter.jpg",
+            "bytes": 498976,
+            "res": "2k"
+          },
+          {
+            "stem": "saturn",
+            "file": "2k_saturn.jpg",
+            "bytes": 199916,
+            "res": "2k"
+          },
+          {
+            "stem": "uranus",
+            "file": "2k_uranus.jpg",
+            "bytes": 77751,
+            "res": "2k"
+          },
+          {
+            "stem": "neptune",
+            "file": "2k_neptune.jpg",
+            "bytes": 241580,
+            "res": "2k"
+          },
+          {
+            "stem": "saturn_ring_alpha",
+            "file": "2k_saturn_ring_alpha.png",
+            "bytes": 12119,
+            "res": "2k"
+          }
+        ],
+        "missing": []
+      },
+      "note": "Bodies without a real global map (most moons, dwarf planets, exoplanets, procedural planets) use procedural surface shaders and are labelled as such in the simulator."
+    },
+    "skymap": {
+      "description": "All-sky map of the unresolved Milky Way starlight (G > minGMag), equirectangular in galactic coordinates, log-quantised uint16: [brightness, log10(BP/RP) colour]",
+      "sources": [
+        {
+          "name": "Gaia DR3 gaia_source, per-HEALPix sums of phot_g/bp/rp_mean_flux over a uniform random subsample (random_index)",
+          "url": "https://gea.esac.esa.int/tap-server/tap/sync",
+          "version": "Gaia DR3",
+          "queriedAt": "2026-10-01T22:56:12.630Z",
+          "license": "CC BY-SA 3.0 IGO (ESA/Gaia/DPAC)"
+        }
+      ],
+      "stats": {
+        "width": 2048,
+        "height": 1024,
+        "healpixLevel": 8,
+        "sampleRows": 40000000,
+        "sampledSources": 39872802,
+        "populatedPixels": 781168,
+        "integratedV": -6.22,
+        "logRange": [
+          -12.84,
+          -7.98
+        ]
+      },
+      "note": "Seen from the Sun. The simulator modulates it with a 3-D galaxy model when the ship moves far from the Sun. Gaia under-counts the most crowded bulge fields, so the Galactic centre glow is a lower bound."
+    },
+    "galaxies": {
+      "description": "Nearest galaxies (distance-sorted) with sky position, distance and photometry for rendering",
+      "sources": [
+        {
+          "name": "McConnachie (2012), AJ 144, 4 — \"The Observed Properties of Dwarf Galaxies in and around the Local Group\", VizieR J/AJ/144/4/catalog",
+          "url": "https://vizier.cds.unistra.fr/viz-bin/asu-tsv",
+          "version": "VizieR V7.6 extraction 2026-10-01",
+          "license": "CDS / AAS"
+        }
+      ],
+      "stats": {
+        "catalogue": 101,
+        "selected": 10,
+        "nearestKly": 22.8,
+        "farthestKly": 166.3
+      },
+      "note": "The nearest 10 are dominated by faint dwarf satellites; only the Magellanic Clouds (and, subtly, the Sagittarius/Canis Major dwarfs) are visible to the eye. Raise build.galaxies.count or use build.galaxies.include for Andromeda etc."
+    }
+  },
+  "files": {
+    "stars.bin": {
+      "bytes": 2609304,
+      "sha256": "607a627d88111808faa7923a4741269c29393fca8008154c719c403164be5174"
+    },
+    "names.json": {
+      "bytes": 64113,
+      "sha256": "1d18ef68e8a1595d14ae302fafd55c9ccd8aab6a13f101ab36cfca38b93a97aa"
+    },
+    "exoplanets.json": {
+      "bytes": 336869,
+      "sha256": "79e24f5ac35ccc48650f84322cc9eee6adcb6a93c9fd93c9357c97103958757d"
+    },
+    "ephemeris.json": {
+      "bytes": 20779,
+      "sha256": "3d3ca4fdb3385aebc77965cebc76c4ea6402236a9ad6f58fbc18020e5b85ec1b"
+    },
+    "../assets/textures.js": {
+      "bytes": 15241408
+    },
+    "milkyway.bin": {
+      "bytes": 8388640,
+      "sha256": "ff55e16b5bd7d2ff00aed4bb5a9e813a8cd831c5a4b7f477919355b8fee596a3"
+    },
+    "galaxies.json": {
+      "bytes": 2509,
+      "sha256": "3209827965aa66394154dc3a6578f302f8a5edf08411abae05d7664946863a85"
+    }
+  },
+  "builtAt": "2026-10-01T22:56:12.630Z",
+  "builder": {
+    "script": "tools/build-data.mjs",
+    "node": "v26.10.0",
+    "command": "--only=skymap"
+  },
+  "configSnapshot": {
+    "epoch": "auto",
+    "stars": {
+      "nearRadiusLy": 100,
+      "brightCount": 100000,
+      "brightMaxMagnitude": null,
+      "hipMinParallaxSNR": 3,
+      "hipNearMinSNR": 5,
+      "photometricDistanceClampPc": [
+        20,
+        4000
+      ],
+      "gaia": {
+        "enabled": true,
+        "minParallaxOverError": 10,
+        "maxRuwe": null
+      }
+    },
+    "names": {
+      "simbad": true,
+      "simbadRadiusLy": 40,
+      "labelRadiusLy": 40,
+      "overrides": [
+        {
+          "hip": 71683,
+          "name": "Alpha Centauri A",
+          "system": "Alpha Centauri",
+          "distLy": 4.37
+        },
+        {
+          "hip": 71681,
+          "name": "Alpha Centauri B",
+          "system": "Alpha Centauri",
+          "distLy": 4.37
+        },
+        {
+          "hip": 70890,
+          "name": "Proxima Centauri",
+          "distLy": 4.25
+        },
+        {
+          "hip": 87937,
+          "name": "Barnard's Star",
+          "distLy": 5.96
+        },
+        {
+          "hip": 32349,
+          "name": "Sirius A",
+          "system": "Sirius",
+          "distLy": 8.6
+        },
+        {
+          "gaia": "2947050466531873024",
+          "name": "Sirius B",
+          "system": "Sirius",
+          "distLy": 8.6
+        },
+        {
+          "hip": 16537,
+          "name": "Epsilon Eridani",
+          "distLy": 10.5
+        },
+        {
+          "gaia": "5140693571158739840",
+          "name": "Luyten 726-8 A",
+          "system": "Luyten 726-8",
+          "distLy": 8.7
+        },
+        {
+          "gaia": "5140693571158946048",
+          "name": "Luyten 726-8 B",
+          "system": "Luyten 726-8",
+          "distLy": 8.7
+        },
+        {
+          "gaia": "3864972938605115520",
+          "name": "Wolf 359",
+          "distLy": 7.9
+        }
+      ]
+    },
+    "galaxies": {
+      "count": 10,
+      "include": []
+    },
+    "exoplanets": {
+      "keep": "matched"
+    },
+    "ephemeris": {
+      "moons": {
+        "Earth": [
+          301
+        ],
+        "Mars": [
+          401,
+          402
+        ],
+        "Jupiter": [
+          501,
+          502,
+          503,
+          504
+        ],
+        "Saturn": [
+          601,
+          602,
+          603,
+          604,
+          605,
+          606,
+          608
+        ],
+        "Uranus": [
+          705,
+          701,
+          702,
+          703,
+          704
+        ],
+        "Neptune": [
+          801,
+          808
+        ],
+        "Pluto": [
+          901
+        ]
+      },
+      "dwarfPlanets": [
+        1,
+        134340,
+        136108,
+        136472,
+        136199
+      ]
+    },
+    "skymap": {
+      "enabled": true,
+      "healpixLevel": 8,
+      "sampleRows": 40000000,
+      "chunkRows": 4000000,
+      "minGMag": 9.5,
+      "width": 2048,
+      "height": 1024
+    },
+    "textures": {
+      "enabled": true,
+      "resolution": {
+        "sun": "2k",
+        "mercury": "2k",
+        "venus": "2k",
+        "earth_daymap": "8k",
+        "earth_nightmap": "4k",
+        "earth_clouds": "4k",
+        "moon": "4k",
+        "mars": "4k",
+        "jupiter": "4k",
+        "saturn": "4k",
+        "uranus": "2k",
+        "neptune": "2k"
+      }
+    },
+    "sources": {
+      "hipparcos": "https://cdsarc.cds.unistra.fr/ftp/I/239/hip_main.dat",
+      "gaiaTap": "https://gea.esac.esa.int/tap-server/tap/sync",
+      "exoTap": "https://exoplanetarchive.ipac.caltech.edu/TAP/sync",
+      "vizier": "https://vizier.cds.unistra.fr/viz-bin/asu-tsv",
+      "simbadTap": "https://simbad.cds.unistra.fr/simbad/sim-tap/sync",
+      "iauNames": "https://www.pas.rochester.edu/~emamajek/WGSN/IAU-CSN.txt",
+      "horizons": "https://ssd.jpl.nasa.gov/api/horizons.api",
+      "sbdb": "https://ssd-api.jpl.nasa.gov/sbdb.api",
+      "jplElements": "https://ssd.jpl.nasa.gov/planets/approx_pos.html",
+      "jplSatPhys": "https://ssd.jpl.nasa.gov/sats/phys_par/",
+      "textureBase": "https://www.solarsystemscope.com/textures/download/"
+    }
+  },
+  "counts": {
+    "stars": 108721,
+    "starsWithinNearRadius": 10350,
+    "starsNamed": 870,
+    "knownPlanets": 1299,
+    "knownPlanetHosts": 894,
+    "knownPlanetsInArchive": 6372,
+    "solarSystemBodies": 36,
+    "galaxies": 10
+  },
+  "epoch": "2026-10-01",
+  "problems": [],
+  "complete": true
+}

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Starship Simulator</title>
+<link rel="stylesheet" href="ui.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="boot"><div class="boot-box"><div class="boot-title">STARSHIP SIMULATOR</div><div id="boot-msg">loading star catalogue…</div><div class="boot-bar"><i id="boot-bar"></i></div></div></div>
+<div id="ui"></div>
+<noscript>This simulator needs JavaScript and WebGL2.</noscript>
+<!-- everything below is a local file: no network access at runtime -->
+<script src="config.js"></script>
+<script src="data/data-bundle.js"></script>
+<script src="assets/textures.js"></script>
+<script src="dist/app.js"></script>
+</body>
+</html>

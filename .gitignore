@@ -1,0 +1,5 @@
+node_modules/
+dev/node_modules/
+shots/
+data/raw/
+.DS_Store

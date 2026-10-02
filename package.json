@@ -1,0 +1,17 @@
+{
+  "name": "starship-simulator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline real-time 3-D starship simulator. Open index.html. Data build: npm run build-data",
+  "type": "module",
+  "scripts": {
+    "build-data": "node tools/build-data.mjs",
+    "build-data:offline": "node tools/build-data.mjs --offline",
+    "bundle": "cd dev && npm install && node bundle.mjs",
+    "serve": "python3 -m http.server 8000",
+    "test:sim": "node dev/test-sim.mjs",
+    "pretest:sim": "ln -sfn dev/node_modules node_modules",
+    "smoke": "ln -sfn dev/node_modules node_modules && node dev/smoke.mjs",
+    "test:flip": "ln -sfn dev/node_modules node_modules && node dev/test-flip.mjs"
+  }
+}

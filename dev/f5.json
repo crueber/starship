@@ -1,0 +1,3 @@
+{"steps":[
+ {"until":"__sim.sim.tour && __sim.sim.tour.idx>=9 && __sim.sim.tour.phase==='dwell' && __sim.sim.tour.timer<8","timeout":900,"poll":8,"log":"(()=>{const S=__sim.sim,h=S.hud();return {where:h.where,idx:S.tour.idx,ph:S.tour.phase,K:Math.round(h.K),fps:Math.round(__sim.ui.fpsAvg),scale:+__sim.gfx.renderScale.toFixed(2)}})()","shot":"tour_full","shotEvery":30}
+]}

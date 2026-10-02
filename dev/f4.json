@@ -1,0 +1,8 @@
+{"steps":[
+ {"eval":"(()=>{const S=__sim.sim;S.tour.timer=0.1;return 1})()"},
+ {"until":"__sim.sim.tour && __sim.sim.tour.idx>=1 && __sim.sim.tour.phase==='dwell'","timeout":80,"poll":4},
+ {"wait":6,"shot":"56_moon_tour"},
+ {"eval":"(()=>{const S=__sim.sim;S.tour.timer=0.1;return 1})()"},
+ {"until":"__sim.sim.tour && __sim.sim.tour.idx>=2 && __sim.sim.tour.phase==='dwell'","timeout":120,"poll":6},
+ {"wait":8,"shot":"57_mars_tour"}
+]}

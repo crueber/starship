@@ -1,0 +1,5 @@
+{"q":"notour=1","steps":[
+ {"eval":"(()=>{const S=__sim.sim,u=__sim.uni;S.setCourseBody(u.solar.get('mars'));S.setTimeAuto(true);return S.hud()})()","print":true},
+ {"until":"__sim.sim.course===null","timeout":120,"poll":3,"log":"(()=>{const h=__sim.sim.hud();return {where:h.where,speed:Math.round(h.speed),c:+h.c.toFixed(4),K:Math.round(h.K),dist:h.targetDist&&Math.round(h.targetDist),mode:h.mode,msgs:__sim.sim.messages.map(m=>m.msg)}})()","shot":"f1_travel","shotEvery":20},
+ {"eval":"__sim.sim.hud()","print":true,"wait":3,"shot":"f1_arrived"}
+]}

@@ -1,0 +1,9 @@
+{"steps":[
+ {"wait":3,"shot":"40_tour_start"},
+ {"wait":3,"eval":"(()=>{const S=__sim.sim;S.tour.timer=0.1;return 1})()"},
+ {"until":"__sim.sim.tour && __sim.sim.tour.idx>=1 && __sim.sim.tour.phase==='dwell'","timeout":80,"poll":5,"log":"(()=>{const S=__sim.sim,h=S.hud();return {where:h.where,idx:S.tour.idx,K:Math.round(h.K)}})()"},
+ {"wait":6,"shot":"43_moon"},
+ {"eval":"(()=>{const S=__sim.sim;S.tour.timer=0.1;return 1})()"},
+ {"until":"__sim.sim.tour && __sim.sim.tour.idx>=2 && __sim.sim.tour.phase==='dwell'","timeout":120,"poll":6,"log":"(()=>{const S=__sim.sim,h=S.hud();return {where:h.where,idx:S.tour.idx,K:Math.round(h.K),dist:h.targetDist&&Math.round(h.targetDist)}})()","shot":"44_to_mars","shotEvery":15},
+ {"wait":5,"shot":"45_mars"}
+]}

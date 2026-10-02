@@ -1,0 +1,27 @@
+// Final smoke test on the production bundle over file://: no page errors, no non-file network requests, curated screenshots into docs/
+import puppeteer from 'puppeteer-core'; import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath } from 'node:url';
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'); const out = path.join(root, 'docs'); fs.mkdirSync(out, { recursive: true });
+const browser = await puppeteer.launch({ executablePath: '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--no-sandbox', '--allow-file-access-from-files', '--window-size=1600,900'] });
+const page = await browser.newPage(); await page.setViewport({ width: 1600, height: 900 });
+const reqs = [], errs = [];
+page.on('request', (r) => reqs.push(r.url())); page.on('pageerror', (e) => errs.push(e.message)); page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
+await page.goto('file://' + path.join(root, 'index.html'), { waitUntil: 'load' });
+await page.waitForFunction('window.__ready === true', { timeout: 120000 });
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const shot = async (n, ev, ms = 1800, hide = true) => { if (ev) await page.evaluate(ev); await wait(ms); if (hide) await page.evaluate('document.getElementById("ui")&&(document.getElementById("ui").style.display="none")'); await page.screenshot({ path: path.join(out, n + '.png') }); await page.evaluate('document.getElementById("ui")&&(document.getElementById("ui").style.display="")'); };
+await wait(9000); await shot('01_tour_earth', null, 100, false);
+const dev = (b, r, az, el) => `(()=>{__sim.devCam={body:'${b}',r:${r},az:${az},el:${el}};return 1})()`;
+await shot('02_moon', dev('moon', 2.2, 40, 12));
+await shot('03_mars', dev('mars', 2.6, 40, 10));
+await shot('04_jupiter', dev('jupiter', 3.2, 45, 10));
+await shot('05_saturn', dev('saturn', 3.0, 40, 25));
+await shot('06_earth', dev('earth', 2.6, 40, 15));
+await page.evaluate('__sim.devCam=null');
+await shot('07_milky_way', `(()=>{__sim.deepSpace([0.1,-0.9,0.02],0);const c=__sim.sim.cam;c.dist=c.distT=0;return 1})()`, 2500);
+await shot('08_relativistic_08c', `(()=>{__sim.deepSpace([1,0.2,0],0.8);const c=__sim.sim.cam;c.pitch=c.pitchT=0.28;c.dist=c.distT=__sim.sim.cfg.ship.lengthM*2.6;return 1})()`, 3000);
+await shot('09_warp_1e4c', `(()=>{__sim.testWarp(4,[0.3,0.9,0.1]);return 1})()`, 5000);
+await shot('10_warp_1e6c', `(()=>{__sim.testWarp(6,[0.3,0.9,0.1]);return 1})()`, 5000);
+await shot('11_hud_free_flight', `(()=>{const S=__sim.sim,u=__sim.uni;S.warp.on=false;S.warp.form=0;S.warp.c=0;S.placeAtBody(u.solar.get('earth'),4,1.6,0.3);return 1})()`, 2500, false);
+const nonFile = reqs.filter((u) => !/^(file:|data:|blob:)/.test(u));
+console.log(JSON.stringify({ requests: reqs.length, nonFile, errors: errs }, null, 1));
+await browser.close();
