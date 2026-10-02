@@ -56,6 +56,16 @@ button:hover{background:rgba(255,255,255,.16)}button.on{background:#ddd;color:#1
 .smap canvas{display:block;border:1px solid var(--line);border-radius:50%;background:radial-gradient(circle,rgba(8,10,18,.55) 0,rgba(8,10,18,.35) 70%,rgba(8,10,18,0) 100%)}
 .smap .cap{margin-top:3px;font-size:9px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
 @media(max-height:760px){.smap{display:none!important}}
+.vis{position:absolute;left:14px;top:96px;width:270px;display:none}.vis.open{display:block}
+.vis h4{margin:0;padding:8px 10px;font-weight:400;letter-spacing:.16em;text-transform:uppercase;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+.vis .body{padding:8px 10px;max-height:60vh;overflow:auto}.vis p{margin:0 0 7px;line-height:1.5}.vis .fine{color:var(--dim);font-size:10px}.vis .err{color:#ff9a8a}
+.vis .me{color:var(--dim);margin-bottom:5px}.vis .me b{color:#fff;font-weight:400;font-size:12px;letter-spacing:.06em}
+.vis .row{display:flex;gap:6px;margin-bottom:8px}.vis .row button{flex:1}.vis button[disabled]{opacity:.4;cursor:default}
+.vis .sec{color:var(--faint);letter-spacing:.12em;font-size:9px;text-transform:uppercase;margin:4px 0 3px}
+.vis .item{display:flex;justify-content:space-between;gap:8px;padding:2px 0}.vis .item .m{color:var(--dim);white-space:nowrap}.vis .where{color:var(--faint);font-size:9px;margin:-1px 0 4px}
+.vlbl{position:absolute;left:0;top:0;pointer-events:none;color:#dfe3ee;font-size:10px;letter-spacing:.08em;white-space:nowrap;text-shadow:0 0 4px #000,0 0 2px #000;display:none}
+.vlbl i{position:absolute;left:-5px;top:-5px;width:8px;height:8px;border:1px solid #fff;transform:rotate(45deg)}
+.vlbl .a{position:absolute;left:10px;top:-12px}.vlbl .b{position:absolute;left:10px;top:0;color:#9aa0b0;font-size:9px}
 .well{position:absolute;left:50%;top:8px;transform:translateX(-50%);padding:3px 6px;pointer-events:none}.well canvas{display:block;width:420px;height:76px}
 @media(max-width:1000px){.well{display:none!important}}
 .banner{position:absolute;left:50%;top:84px;transform:translateX(-50%);padding:3px 12px;border:1px solid #aaa;letter-spacing:.14em;color:#ddd;background:var(--bg);display:none;text-transform:uppercase;font-size:10px}

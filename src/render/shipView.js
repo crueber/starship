@@ -215,6 +215,7 @@ export class ShipView {
     this.scene.environmentRotation = new THREE.Euler().setFromQuaternion(q);
     // starlight fill (never fully black so the ship stays readable in the dark; a few % like a real camera's veiling light)
     this.amb.intensity = PI * ex * (S.ambientE || 0) + 0.015 * (1 - Math.min(1, S.warp.form)) * (this.cfg.visuals.ship.shadowFill ?? 1);
+    this._updateOthers(S);
     this.ship.update(S.dt || 0, this.t, { gimbal: S.gimbal, engines: S.engines, speed01: S.warp.speed01, throttle: S.throttle, warp: S.warp.form, engineOn: true });
 
     // warp bubble
@@ -239,6 +240,17 @@ export class ShipView {
       }
     }
     return { camQuat, offsetWorld };
+  }
+
+  /** other visitors close enough to be drawn as ships: S.others = [{ relKm:[x,y,z], quat:[x,y,z,w], eng:[rocket,cruise,warp] }] (relative to this ship, world axes) */
+  _updateOthers(S) {
+    const list = S.others || [], pool = this.others || (this.others = []);
+    while (pool.length < Math.min(list.length, this.cfg.visitors.maxModels)) { const m = buildShip(this.cfg); m.root.visible = false; this.scene.add(m.root); pool.push(m); }
+    pool.forEach((m, i) => {
+      const o = list[i]; m.root.visible = !!o; if (!o) return;
+      m.root.position.set(o.relKm[0] * 1000, o.relKm[1] * 1000, o.relKm[2] * 1000); m.root.quaternion.set(o.quat[0], o.quat[1], o.quat[2], o.quat[3]).normalize();
+      m.update(S.dt || 0, this.t, { engines: { rocket: o.eng[0], cruise: o.eng[1], warp: o.eng[2] }, speed01: o.eng[2], throttle: o.eng[0], warp: 0, gimbal: { x: 0, y: 0 } });
+    });
   }
 
   render(renderer) {

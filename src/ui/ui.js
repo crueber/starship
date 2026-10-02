@@ -99,8 +99,8 @@ class SysMap {
 }
 
 export class UI {
-  constructor(sim, cfg, gfx, canvas) {
-    this.sim = sim; this.cfg = cfg; this.gfx = gfx; this.canvas = canvas;
+  constructor(sim, cfg, gfx, canvas, visitors) {
+    this.visitors = visitors; this.sim = sim; this.cfg = cfg; this.gfx = gfx; this.canvas = canvas;
     this.root = document.getElementById('ui');
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
     this.keys = new Set(); this.selected = null; this.labelsEnabled = cfg.visuals.labels.enabled; this.hidden = false;
@@ -144,15 +144,19 @@ export class UI {
     this.btnStars = el('button', '', 'STARS'); this.btnStars.title = 'tour the local stars, warping from system to system'; this.btnStars.onclick = () => this.startTour('stars');
     this.btnPace = el('button', '', 'FAST'); this.btnPace.title = 'FAST: time compression is automatic · SLOW: you set it with the TIME buttons'; this.btnPace.onclick = () => sim.setTourPace((sim.tour ? sim.tour.pace : sim.tourPace) === 'fast' ? 'slow' : 'fast');
     gTour.append(this.btnSys, this.btnStars, this.btnPace);
+    this.btnVis = el('button', '', 'VISITORS'); this.btnVis.title = 'see other people flying right now (opt-in, peer to peer)'; this.btnVis.onclick = () => this.toggleVisitors();
     this.btnNav = el('button', '', 'NAV'); this.btnNav.onclick = () => this.toggleNav();
     this.btnStop = el('button', '', 'HOLD'); this.btnStop.title = 'cancel autopilot / stop (X)'; this.btnStop.onclick = () => this.stopAll();
     this.btnSet = el('button', '', '⚙'); this.btnSet.title = 'settings (,)'; this.btnSet.onclick = () => this.toggleSettings();
     this.btnFull = el('button', '', '⛶'); this.btnFull.title = 'full screen on / off (Z)'; this.btnFull.onclick = () => this.toggleFullscreen();
     this.btnHelp = el('button', '', '?'); this.btnHelp.onclick = () => this.help.classList.toggle('open');
-    for (const b of [this.btnNav, this.btnStop, this.btnSet, this.btnFull, this.btnHelp]) gX.appendChild(b);
+    for (const b of [this.btnVis, this.btnNav, this.btnStop, this.btnSet, this.btnFull, this.btnHelp]) gX.appendChild(b);
     this.ctl.append(gD, gT, gTour, gX);
     // nav panel
     this.nav = el('div', 'nav panel', '<h4><span>Navigation</span><span id="nav-x" style="cursor:pointer">×</span></h4><div class="srch"><input id="nav-q" type="text" placeholder="search systems (2+ characters)" autocomplete="off" spellcheck="false"></div><div class="list" id="nav-list"></div><div class="foot" id="nav-foot">select a destination</div>');
+    // visitors panel
+    this.visP = el('div', 'vis panel', ''); this.visKey = '';
+    this.visLbls = [];
     // settings
     this.setP = el('div', 'set panel', '<h4><span>Settings</span><span id="set-x" style="cursor:pointer">×</span></h4><div class="body" id="set-body"></div>');
     this.help = el('div', 'help panel', `<h4>Controls</h4><div class="cols">
@@ -170,7 +174,7 @@ export class UI {
     this.labelLayer.append(this.markSel, this.markHome);
     this.hint = el('div', 'hint', cfg.ui.keyHints ? 'drag = look around · right-drag = steer · W/S throttle · N navigation · ? help' : '');
     this.fps = el('div', 'fps', '');
-    R.append(this.labelLayer, this.well, this.selP, this.tl, this.tr, this.banner, this.toast, this.speedP, this.courseP, this.ctl, this.nav, this.setP, this.help, this.hint, this.fps);
+    R.append(this.labelLayer, this.well, this.selP, this.tl, this.tr, this.banner, this.toast, this.speedP, this.courseP, this.ctl, this.nav, this.visP, this.setP, this.help, this.hint, this.fps);
     this.nav.querySelector('#nav-x').onclick = () => this.nav.classList.remove('open');
     this.setP.querySelector('#set-x').onclick = () => this.setP.classList.remove('open');
     this._buildSettings();
@@ -182,7 +186,7 @@ export class UI {
     this.hint.style.transition = 'opacity 2s';
   }
 
-  toggleNav() { this.nav.classList.toggle('open'); if (this.nav.classList.contains('open')) { this.renderNav(true); setTimeout(() => this.navQ.focus(), 0); } }
+  toggleNav() { this.nav.classList.toggle('open'); if (this.nav.classList.contains('open')) { this.visP.classList.remove('open'); this.renderNav(true); setTimeout(() => this.navQ.focus(), 0); } }
   startTour(scope) { const sim = this.sim; if (sim.tour && sim.tour.scope === scope) sim.stopTour(); else sim.beginTour(scope); }
   toggleFullscreen() {
     const d = document, el0 = d.documentElement;
@@ -581,6 +585,53 @@ export class UI {
     this.toast.innerHTML = sim.messages.map((m) => `<div>${m.msg}</div>`).join('');
     this.fps.textContent = `${Math.round(this.fpsAvg)} fps · ${this.gfx.W}×${this.gfx.H}${extra && extra.scale < 0.99 ? ' · scale ' + extra.scale.toFixed(2) : ''}`;
     this.renderNav();
+  }
+
+  // ───────────────────────── visitors (peer to peer, opt-in) ─────────────────────────
+  toggleVisitors() {
+    this.visP.classList.toggle('open');
+    if (this.visP.classList.contains('open')) { this.nav.classList.remove('open'); this.visKey = ''; this.renderVisitors(true); }
+  }
+  renderVisitors(force = false) {
+    const V = this.visitors, P = this.visP; if (!P.classList.contains('open')) return;
+    const list = V.view, st = V.state, wait = V.rerollWait;
+    const key = [st, V.error, V.callsign, V.count, list.map((v) => v.name + Math.round(Math.log10(v.distKm + 1) * 4)).join('|'), wait > 0 ? Math.ceil(wait) : 0].join('§');
+    if (!force && key === this.visKey) return; this.visKey = key;
+    const fmtD = (km) => (km >= 9.46e12 * 0.05 ? (km / 9.4607e12).toFixed(2) + ' ly' : km >= 1.496e8 * 0.05 ? (km / 1.496e8).toFixed(2) + ' AU' : fmtDistance(km));
+    let h = '<h4><span>Visitors</span><span id="vis-x" style="cursor:pointer">×</span></h4><div class="body">';
+    if (st === 'off' || st === 'error') {
+      h += `<p>See other people who are flying right now, as ships.</p><p class="fine">This is <b>peer to peer</b>: your browser connects straight to other visitors' browsers, so they can see your network address, like in a video call. Public matchmaking relays only introduce browsers to each other. There are no accounts, nothing is stored, and you get a random callsign.</p>`;
+      if (st === 'error') h += `<p class="err">${V.error}</p>`;
+      h += '<button id="vis-join">JOIN</button>';
+    } else {
+      h += `<div class="me">you are<br><b>${V.callsign}</b></div><div class="row"><button id="vis-reroll" ${wait > 0 ? 'disabled' : ''}>RE-ROLL${wait > 0 ? ' · ' + Math.ceil(wait) + 's' : ''}</button><button id="vis-leave">LEAVE</button></div>`;
+      h += `<div class="sec">${st === 'joining' ? 'connecting…' : list.length ? list.length + ' visitor' + (list.length > 1 ? 's' : '') + ' online' : 'looking for visitors… (nobody else may be here right now)'}</div>`;
+      for (const v of list.slice(0, 12)) h += `<div class="item"><span class="n">${v.name}</span><span class="m">${fmtD(v.distKm)}</span></div><div class="where">${v.sameSystem ? 'in this system' : v.sysName || 'elsewhere'}${v.eng[2] > 0.1 ? ' · warp' : v.eng[1] > 0.1 ? ' · cruise' : v.eng[0] > 0.1 ? ' · burning' : ''}</div>`;
+    }
+    P.innerHTML = h + '</div>';
+    const q = (id) => P.querySelector(id);
+    if (q('#vis-x')) q('#vis-x').onclick = () => P.classList.remove('open');
+    if (q('#vis-join')) q('#vis-join').onclick = () => { V.join().then(() => this.renderVisitors(true)); this.renderVisitors(true); };
+    if (q('#vis-leave')) q('#vis-leave').onclick = () => { V.leave(); this.renderVisitors(true); };
+    if (q('#vis-reroll')) q('#vis-reroll').onclick = () => { V.reroll(); this.renderVisitors(true); };
+  }
+  /** markers for visitors in view: a small diamond, the callsign, and the distance */
+  updateVisitors(view, fovDeg) {
+    const V = this.visitors; this.renderVisitors();
+    const n = V.count; const t = 'VISITORS' + (V.state === 'on' && n ? ` · ${n}` : ''); if (this.btnVis.textContent !== t) this.btnVis.textContent = t;
+    this.btnVis.classList.toggle('on', V.state === 'on');
+    const show = V.state === 'on' && !this.hidden && this.labelsEnabled;
+    const list = show ? V.view.slice(0, 24) : [];
+    while (this.visLbls.length < list.length) { const e = el('div', 'vlbl', '<i></i><span class="a"></span><span class="b"></span>'); this.labelLayer.appendChild(e); this.visLbls.push(e); }
+    this.visLbls.forEach((e, i) => {
+      const v = list[i]; if (!v) { e.style.display = 'none'; return; }
+      const p = this._project(v.relKm, view, fovDeg); if (!p.on) { e.style.display = 'none'; return; }
+      e.style.display = 'block'; e.style.transform = `translate(${Math.round(p.x)}px,${Math.round(p.y)}px)`;
+      const col = v.eng[2] > 0.1 ? '#7fb2ff' : v.eng[1] > 0.1 ? '#f4f4ff' : v.eng[0] > 0.1 ? '#ffae5c' : '#cfd3dc';
+      e.firstChild.style.borderColor = col; e.firstChild.style.boxShadow = `0 0 6px ${col}`;
+      const key = v.name + '|' + Math.round(v.distKm / (v.distKm > 1e7 ? 1e6 : v.distKm > 1e3 ? 100 : 1));
+      if (e._k !== key) { e._k = key; e.children[1].textContent = v.name; e.children[2].textContent = v.distKm > 9.46e12 * 0.05 ? (v.distKm / 9.4607e12).toFixed(2) + ' ly' : v.distKm > 1.496e8 * 0.05 ? (v.distKm / 1.496e8).toFixed(2) + ' AU' : fmtDistance(v.distKm); }
+    });
   }
 
   /** project a camera-frame offset (km, rest frame) to the screen; edge-clamped with a direction angle when off-screen or behind */

@@ -328,6 +328,20 @@ window.SIM_CONFIG = {
     refreshDistancePc: 40,
   },
 
+  visitors: {
+    // Opt-in, peer to peer (WebRTC via the Trystero library). Nothing connects until you press VISITORS > JOIN. Public Nostr relays are used only to introduce browsers to each other.
+    appId: "crueber.starship.v1",  // everyone using the same appId + room meets
+    room: "local-stars",
+    relays: [],                    // [] = the library's default public relays; or list your own "wss://..." Nostr relays
+    sendHz: 2,                     // position updates per second
+    maxPeers: 24,                  // a full WebRTC mesh gets heavy beyond a few dozen
+    staleSec: 12,                  // a visitor not heard from for this long is dropped
+    maxExtrapolateSec: 3,          // dead reckoning is trusted for this long between updates
+    rerollSec: 2,                  // minimum time between callsign re-rolls
+    modelRangeM: 4000,             // visitors closer than this are drawn as ships (farther ones are markers)
+    maxModels: 6,
+  },
+
   ui: {
     showHud: true,
     units: "auto",               // "auto" | "km" | "au" | "ly"

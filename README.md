@@ -15,6 +15,7 @@ A toy universe you can leave running on a spare monitor, or take the controls of
 - ⭐ More than 100,000 real stars from the Gaia and Hipparcos catalogues, in their true places and colours
 - 🌌 A Milky Way painted from real star-count data, and the nearest galaxies as faint smudges
 - 🪐 Pick Alpha Centauri, Sirius, Barnard's Star, Proxima... and go there. Stars with no known planets get invented ones, clearly labelled *fictional*
+- 👥 Press **VISITORS** to see other people flying right now (optional, peer to peer, no accounts)
 - 🛰️ Slip into a quiet orbit around anything and just watch the world turn
 
 ![Warp streaks](docs/warp-streaks.jpg)

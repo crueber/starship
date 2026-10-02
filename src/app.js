@@ -8,6 +8,7 @@ import { loadTextures } from './render/textures.js';
 import { systemIrradiance, keyLight, exposureFromContext, adaptGain } from './render/exposure.js';
 import { Sim, C_KMS } from './sim/sim.js';
 import { UI } from './ui/ui.js';
+import { Visitors } from './net/visitors.js';
 import { blackbodyRGB } from './universe/starTraits.js';
 import { KM_PER_PC, KM_PER_AU, DEG } from '../shared/astro.js';
 import { smoothstep, clamp } from './core/math.js';
@@ -33,12 +34,13 @@ export async function boot() {
   const space = new SpaceView(gfx, cfg, textures, uni.cat);
   const shipView = new ShipView(gfx, cfg);
   const sim = new Sim(uni, cfg);
-  const ui = new UI(sim, cfg, gfx, canvas);
+  const visitors = new Visitors(sim, cfg);
+  const ui = new UI(sim, cfg, gfx, canvas, visitors);
   setMsg('ready', 1); await tick();
 
   let curSystem = null, userScale = cfg.visuals.renderScale;
   let gainCur = null, last = performance.now(), fpsT = 0, lowT = 0, highT = 0, okT = 0, fpsEma = 60, lastUp = 0, lastDown = 0, raiseWait = 3, prevWarp = false, probe = null, noDownUntil = 0;
-  const api = window.__sim = { cfg, data, uni, gfx, space, shipView, sim, ui, textures, frames: 0, F: null, info: null, freeze: false };
+  const api = window.__sim = { cfg, data, uni, gfx, space, shipView, sim, ui, visitors, textures, frames: 0, F: null, info: null, freeze: false };
   api.testWarp = (stepIdx, dirWorld) => {            // dev helper: drop into interstellar space and engage warp at a given step
     sim.cancelCourse(); sim.stopTour && sim.stopTour();
     sim.system = null; sim.ref = null; sim.anchorPc = [0, 0, 0]; sim.pos = [4e10, 2e10, 1e10]; sim.vel = [0, 0, 0];
@@ -75,7 +77,9 @@ export async function boot() {
     gainCur = adaptGain(gainCur, target, dtReal, cfg.visuals.exposure.adaptSeconds);
 
     // ── camera pose from ship + orbiting chase camera
+    visitors.update(dtReal);
     const sv = shipView.update({
+      others: visitors.models,
       quat: sim.q, camFrame: sim.qCam, gimbal: sim.gimbal, engines: sim.eng, dt: dtReal, cam: { yaw: c.yaw, pitch: c.pitch, dist: Math.max(c.dist, 0.0), up: c.dist < 3 ? 0 : c.up * Math.min(1, c.dist / 40) }, fov: cfg.camera.fovDeg, aspect: gfx.W / gfx.H,
       ...ctx, exposure: gainCur, throttle: throttle01(sim, cfg), warp: { form: sim.warp.form, speed01: speed01(sim, cfg), pulse: sim.warp.pulse },
     });
@@ -132,7 +136,7 @@ export async function boot() {
     });
     if (!api.freeze) ui.update(dtReal, { scale: gfx.renderScale });
     ui.updateLabels(info, view, cfg.camera.fovDeg, gfx.W / gfx.H);
-    ui.updateMarkers(view, cfg.camera.fovDeg);
+    ui.updateMarkers(view, cfg.camera.fovDeg); ui.updateVisitors(view, cfg.camera.fovDeg);
     api.frames++;
 
     // ── adaptive resolution (keep ~60 fps on modest GPUs). It must also come BACK: a 60 Hz display never reports more than ~60 fps, so recovery is triggered by "fast enough", not by "faster than the target".

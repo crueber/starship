@@ -3,6 +3,13 @@
   "private": true,
   "description": "Dev-only tooling (bundler + screenshot harness). Not needed to RUN the simulator.",
   "type": "module",
-  "scripts": { "bundle": "node bundle.mjs" },
-  "devDependencies": { "esbuild": "^0.25.0", "three": "^0.170.0", "puppeteer-core": "^24.0.0" }
+  "scripts": {
+    "bundle": "node bundle.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "puppeteer-core": "^24.0.0",
+    "three": "^0.170.0",
+    "trystero": "^0.25.4"
+  }
 }

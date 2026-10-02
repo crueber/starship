@@ -49,6 +49,17 @@ Two kinds of tour (bottom-right, **TOUR** row), each at two paces:
 
 While time is compressed, a small watch dial in the top-left clock panel shows it: a lazy second hand at ×1, then a hand that spins faster with every decade, trailing a glowing sweep that fills the whole dial at the top of the range. Chevrons follow the clock readout, and at very high compression a faint cool glow breathes in the corners of the screen (`ui.timeGlow` turns that off).
 
+## Visitors (other people flying right now)
+
+**Opt-in and peer to peer.** Nothing connects until you press **VISITORS > JOIN**. Then your browser meets other visitors' browsers directly over WebRTC (the [Trystero](https://github.com/dmotz/trystero) library, with public Nostr relays used only to introduce browsers to each other; the relay list can be overridden in `config.js` > `visitors.relays`). Everyone using the same `visitors.appId` + `visitors.room` meets.
+
+* **Privacy:** it is peer to peer, so the people you connect to can see your network address, the same as in a video call. There are no accounts and no server of ours; nothing is stored. The panel says this before you join.
+* **Callsigns:** a random registry-style name such as *ISV Calliope NCC-4471*, not editable; **RE-ROLL** gives a new one (at most every 2 s).
+* **What is sent** (about twice a second): your callsign, where you are (the system and the body you are bound to, plus a galactic position), your measured velocity, your heading and which engines are lit. Messages from others are validated and clamped before use.
+* **How they look:** visitors in view get a small diamond with their callsign and distance (tinted by engine: orange rocket, white cruise, blue warp). Within 4 km they are drawn as ships, with lit engines. Everyone is shown in real time whatever time compression either of you is running, so at high compression they simply zip by.
+* **Limits:** up to 24 visitors; a visitor not heard from for 12 s is dropped. The matchmaking relays are public and can be flaky (the panel reports it if none can be reached); some strict networks block peer-to-peer connections altogether (there is no relay server for the data itself).
+* `npm run test:visitors` checks the network-free parts; `npm run test:visitors:e2e` launches two real browsers that must find each other over the public relays.
+
 ## System map
 
 A small round top-down map sits on the right edge (`M` toggles it, `ui.systemMap` turns it off; it hides itself on short windows). It shows the star system you are in: the star, each planet on its orbit at its true bearing (radius is log-scaled so the inner worlds stay visible), dwarf planets as fainter dots, the world you are orbiting or have selected ringed, and your ship as a triangle pointing along its heading, with a pale wedge for where the camera is looking. A dotted line runs to the target of a set course. The caption counts the planets (and dwarf planets); it is hidden between stars.

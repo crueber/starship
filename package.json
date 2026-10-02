@@ -12,6 +12,8 @@
     "test:sim": "node dev/test-sim.mjs",
     "pretest:sim": "ln -sfn dev/node_modules node_modules",
     "smoke": "ln -sfn dev/node_modules node_modules && node dev/smoke.mjs",
-    "test:flip": "ln -sfn dev/node_modules node_modules && node dev/test-flip.mjs"
+    "test:flip": "ln -sfn dev/node_modules node_modules && node dev/test-flip.mjs",
+    "test:visitors": "node dev/test-visitors.mjs",
+    "test:visitors:e2e": "ln -sfn dev/node_modules node_modules && node dev/visitors-e2e.mjs"
   }
 }
