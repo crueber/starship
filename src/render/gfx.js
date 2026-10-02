@@ -200,14 +200,13 @@ export class Gfx {
     return rt;
   }
 
-  resize(cssW = this.canvas.clientWidth || window.innerWidth, cssH = this.canvas.clientHeight || window.innerHeight) {
+  resize(cssW = window.innerWidth, cssH = window.innerHeight) {          // the canvas fills the window by CSS (100 %); its size is read from the window, never from its own previous inline size
     const dpr = Math.min(window.devicePixelRatio || 1, this.cfg.visuals.maxPixelRatio);
     const sc = this.renderScale;
     const W = Math.max(2, Math.floor(cssW * dpr * sc)), H = Math.max(2, Math.floor(cssH * dpr * sc));
     this.W = W; this.H = H; this.cssW = cssW; this.cssH = cssH;
     this.renderer.setPixelRatio(1);
     this.renderer.setSize(Math.floor(cssW * dpr), Math.floor(cssH * dpr), false);
-    this.canvas.style.width = cssW + 'px'; this.canvas.style.height = cssH + 'px';
     this.outW = Math.floor(cssW * dpr); this.outH = Math.floor(cssH * dpr);
     const samples = Math.min(this.cfg.visuals.antialias, this.renderer.capabilities.maxSamples);
     for (const k of ['sceneRT', 'lensRT']) if (this[k]) this[k].dispose();

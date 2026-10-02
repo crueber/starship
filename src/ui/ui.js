@@ -50,8 +50,9 @@ export class UI {
     this.btnNav = el('button', '', 'NAV'); this.btnNav.onclick = () => this.toggleNav();
     this.btnStop = el('button', '', 'HOLD'); this.btnStop.title = 'cancel autopilot / stop (X)'; this.btnStop.onclick = () => this.stopAll();
     this.btnSet = el('button', '', '⚙'); this.btnSet.title = 'settings (,)'; this.btnSet.onclick = () => this.toggleSettings();
+    this.btnFull = el('button', '', '⛶'); this.btnFull.title = 'full screen on / off (Z)'; this.btnFull.onclick = () => this.toggleFullscreen();
     this.btnHelp = el('button', '', '?'); this.btnHelp.onclick = () => this.help.classList.toggle('open');
-    for (const b of [this.btnTour, this.btnNav, this.btnStop, this.btnSet, this.btnHelp]) gX.appendChild(b);
+    for (const b of [this.btnTour, this.btnNav, this.btnStop, this.btnSet, this.btnFull, this.btnHelp]) gX.appendChild(b);
     this.ctl.append(gD, gT, gX);
     // nav panel
     this.nav = el('div', 'nav panel', '<h4><span>Navigation</span><span id="nav-x" style="cursor:pointer">×</span></h4><div class="srch"><input id="nav-q" type="text" placeholder="search systems (2+ characters)" autocomplete="off" spellcheck="false"></div><div class="list" id="nav-list"></div><div class="foot" id="nav-foot">select a destination</div>');
@@ -63,7 +64,7 @@ export class UI {
       <div><kbd>right-drag</kbd> / <kbd>Shift</kbd>+drag steer ship</div><div><kbd>C</kbd> recentre camera · <kbd>V</kbd> first-person</div>
       <div><kbd>=</kbd><kbd>-</kbd> / wheel on the drive slider: step through rocket → nacelle → warp speeds</div><div><kbd>G</kbd> engage / drop warp · <kbd>]</kbd><kbd>[</kbd> warp step</div><div><kbd>1</kbd>–<kbd>8</kbd> time compression · <kbd>0</kbd> auto</div>
       <div><kbd>N</kbd> navigation · <kbd>Enter</kbd> set course</div><div><kbd>T</kbd> tour on / off · <kbd>,</kbd> settings</div>
-      <div><kbd>O</kbd> orbit lines · <kbd>L</kbd> labels</div><div><kbd>H</kbd> hide interface · <kbd>?</kbd> this help</div></div>
+      <div><kbd>O</kbd> orbit lines · <kbd>L</kbd> labels</div><div><kbd>Z</kbd> full screen · <kbd>H</kbd> hide interface · <kbd>?</kbd> this help</div></div>
       <div style="margin-top:8px;color:#8a8a8a">Speed limit inside a heliopause is ${cfg.ship.maxSublightC} c. Beyond it the warp drive steps 1 c → ${cfg.warp.steps[cfg.warp.steps.length - 1].toLocaleString('en-US')} c and the ship brakes itself to sub-light at the next heliopause. Nothing can be landed on; every body has a safe-orbit wall.</div>`);
     this.labelLayer = el('div'); this.labelLayer.style.cssText = 'position:absolute;inset:0;pointer-events:none';
     this.well = el('div', 'well panel', '<canvas width="760" height="64"></canvas>'); this.wellCv = this.well.querySelector('canvas');
@@ -85,6 +86,11 @@ export class UI {
   }
 
   toggleNav() { this.nav.classList.toggle('open'); if (this.nav.classList.contains('open')) { this.renderNav(true); setTimeout(() => this.navQ.focus(), 0); } }
+  toggleFullscreen() {
+    const d = document, el0 = d.documentElement;
+    if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+    else { const f = el0.requestFullscreen || el0.webkitRequestFullscreen; if (f) { const r = f.call(el0); if (r && r.catch) r.catch(() => this.sim.say('Full screen was refused by the browser', 3)); } else this.sim.say('Full screen is not available in this browser', 3); }
+  }
   toggleSettings() { this.setP.classList.toggle('open'); }
   stopAll() { const s = this.sim; if (s.tour) s.stopTour(); if (s.course) s.cancelCourse('Autopilot disengaged'); if (s.warp.on) s.disengageWarp(); s.speedTarget = 0; }
 
@@ -142,7 +148,8 @@ export class UI {
     window.addEventListener('keydown', (e) => {
       if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
       const k = e.key.toLowerCase(); this.keys.add(k);
-      if (k === 'h') { this.hidden = !this.hidden; this.root.style.display = this.hidden ? 'none' : ''; }
+      if (k === 'z' && !e.ctrlKey && !e.metaKey) this.toggleFullscreen();
+      else if (k === 'h') { this.hidden = !this.hidden; this.root.style.display = this.hidden ? 'none' : ''; }
       else if (k === 'n') this.toggleNav();
       else if (k === ',') this.toggleSettings();
       else if (k === '?' || k === '/') this.help.classList.toggle('open');
@@ -198,7 +205,10 @@ export class UI {
       if (e.deltaY > 0 && sim.cam.distT < 0.6 && d > 0) sim.cam.distT = 0.6 * f;
     }, { passive: false });
     cv.addEventListener('dblclick', () => { sim.recenterCamera(); sim.cam.yawT = 0; sim.cam.pitchT = 0.28; });
-    window.addEventListener('resize', () => this.gfx.resize());
+    // keep the picture matched to the window: window drags, full screen on / off, display changes
+    let rz = 0; const refit = () => { cancelAnimationFrame(rz); rz = requestAnimationFrame(() => { if (Math.abs(this.gfx.cssW - window.innerWidth) > 0 || Math.abs(this.gfx.cssH - window.innerHeight) > 0) this.gfx.resize(); }); };
+    window.addEventListener('resize', refit); document.addEventListener('fullscreenchange', () => { refit(); setTimeout(refit, 150); setTimeout(refit, 600); });
+    if (window.ResizeObserver) new ResizeObserver(refit).observe(document.documentElement);
   }
 
   pollKeys() {
