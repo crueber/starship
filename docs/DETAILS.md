@@ -7,7 +7,7 @@ on real orbits, under a sky built from real star catalogues.
 The page only reads local files (`config.js`, `data/data-bundle.js`, `assets/textures.js`, `dist/app.js`).
 If you prefer a server: `python3 -m http.server` in this folder, then open `http://localhost:8000`.
 
-It starts with a slow cinematic tour of the Solar System. Press **T** (or touch any flight control) to take the helm.
+It starts with a cinematic tour of the Solar System. Press **T** (or touch any flight control) to take the helm.
 
 ---
 
@@ -37,6 +37,17 @@ To slow down it swings the ship tail-first (retrograde, `ship.flipRateDegPerSec`
 The engine glow and the HUD "engine" row show real output only: *thrusting*, *turning to brake*, *retro burn* or *coasting*. The autopilot does the same
 (accelerate → coast → flip → burn → orbit). Steering without touching the throttle bends the course through the engine, not by magic.
 `npm run test:flip` checks that the ship really turns around and never burns nose-forward while slowing.
+
+## Tours
+
+Two kinds of tour (bottom-right, **TOUR** row), each at two paces:
+
+* **SYSTEM**: visits the planets of the star system you are in (the curated Solar System list, or a generated list in another system).
+* **STARS**: warps from star system to star system, nearest first, and settles into orbit around a world at each one (never repeating until it has done them all).
+* **FAST**: time compression is automatic (fast while travelling, slowed to a pretty orbit speed at each stop).
+* **SLOW**: you set the time compression with the TIME buttons; stops last twice as long. Pressing a TIME button during a fast tour switches it to slow, and AUTO switches it back. The FAST / SLOW button changes the pace live.
+
+While time is compressed, quiet ticks stream up both edges of the screen: none at ×1, then more, longer, faster and brighter with every decade (and chevrons after the clock readout), so you can always tell the clock is racing.
 
 ## Gravity-well gauge
 

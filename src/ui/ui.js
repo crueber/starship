@@ -7,6 +7,47 @@ import { C_KMS } from '../sim/sim.js';
 
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 
+
+/** A quiet visual cue that time is running fast: film-strip ticks stream up both screen edges. Nothing at x1; it builds (more ticks, longer, faster, brighter) with every decade of time compression. */
+class TimeFx {
+  constructor() {
+    this.canvas = document.createElement('canvas'); this.canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0';
+    this.level = 0; this.off = 0; this.W = 0; this.H = 0; this.dpr = 1; this.bursts = [];
+  }
+  update(dt, K) {
+    const target = K > 2 ? Math.min(1, Math.log10(K) / 7) : 0;
+    this.level += (target - this.level) * (1 - Math.exp(-dt / 0.8));
+    const L = this.level, cv = this.canvas;
+    const W = window.innerWidth, H = window.innerHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (L < 0.01) { if (this.on) { cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); this.on = false; } return; }
+    this.on = true;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    const speed = 28 + 1300 * L * L, gap = 22 - 9 * L;                       // px/s, px between ticks
+    this.off = (this.off + speed * dt) % (gap * 1000);
+    const cols = L < 0.35 ? 1 : L < 0.7 ? 2 : 3;
+    const fade = (y) => Math.min(1, y / (H * 0.18), (H - y) / (H * 0.18));  // ticks fade out toward the top and bottom of the screen
+    for (const side of [0, 1]) for (let c = 0; c < cols; c++) {
+      const x0 = side ? W - 10 - c * (13 + 5 * L) : 10 + c * (13 + 5 * L), dir = side ? -1 : 1;
+      const len = (5 + 22 * L) * (1 - 0.28 * c), a0 = (0.16 + 0.5 * L) * (1 - 0.3 * c);
+      const phase = (this.off * (1 + 0.23 * c) + c * 7.3) % gap;
+      for (let y = H + gap - phase; y > -gap; y -= gap) {
+        const f = fade(y); if (f <= 0) continue;
+        const tail = 6 + 90 * L * L * (0.5 + 0.5 * Math.sin(y * 12.9898 + c));    // a short motion streak below each tick at high compression
+        const grad = g.createLinearGradient(0, y, 0, y + tail); grad.addColorStop(0, `rgba(235,240,255,${a0 * f})`); grad.addColorStop(1, 'rgba(235,240,255,0)');
+        g.fillStyle = grad; g.fillRect(side ? x0 - len : x0, y, len, 1.3);
+        if (tail > 14) g.fillRect(x0 + (side ? -0.5 : len - 0.5), y, 0.9, tail * 0.9 > 1 ? tail * 0.9 : 1);
+      }
+    }
+    // at the very top of the range a faint sweeping band marks the clock racing
+    if (L > 0.72) {
+      const a = (L - 0.72) / 0.28 * 0.05, yy = ((performance.now() * (0.12 + 0.5 * L)) % (H + 200)) - 100;
+      const gr = g.createLinearGradient(0, yy - 90, 0, yy + 90); gr.addColorStop(0, 'rgba(200,215,255,0)'); gr.addColorStop(0.5, `rgba(200,215,255,${a})`); gr.addColorStop(1, 'rgba(200,215,255,0)');
+      g.fillStyle = gr; g.fillRect(0, yy - 90, W, 180);
+    }
+  }
+}
+
 export class UI {
   constructor(sim, cfg, gfx, canvas) {
     this.sim = sim; this.cfg = cfg; this.gfx = gfx; this.canvas = canvas;
@@ -46,14 +87,18 @@ export class UI {
     this._setupDrive(gD);
     // tools
     const gX = el('div', 'grp');
-    this.btnTour = el('button', '', 'TOUR'); this.btnTour.onclick = () => (sim.tour ? sim.stopTour() : sim.beginTour());
+    const gTour = el('div', 'grp'); gTour.appendChild(el('span', 'lab', 'tour'));
+    this.btnSys = el('button', '', 'SYSTEM'); this.btnSys.title = 'tour the planets of the star system you are in (T)'; this.btnSys.onclick = () => this.startTour('system');
+    this.btnStars = el('button', '', 'STARS'); this.btnStars.title = 'tour the local stars, warping from system to system'; this.btnStars.onclick = () => this.startTour('stars');
+    this.btnPace = el('button', '', 'FAST'); this.btnPace.title = 'FAST: time compression is automatic · SLOW: you set it with the TIME buttons'; this.btnPace.onclick = () => sim.setTourPace((sim.tour ? sim.tour.pace : sim.tourPace) === 'fast' ? 'slow' : 'fast');
+    gTour.append(this.btnSys, this.btnStars, this.btnPace);
     this.btnNav = el('button', '', 'NAV'); this.btnNav.onclick = () => this.toggleNav();
     this.btnStop = el('button', '', 'HOLD'); this.btnStop.title = 'cancel autopilot / stop (X)'; this.btnStop.onclick = () => this.stopAll();
     this.btnSet = el('button', '', '⚙'); this.btnSet.title = 'settings (,)'; this.btnSet.onclick = () => this.toggleSettings();
     this.btnFull = el('button', '', '⛶'); this.btnFull.title = 'full screen on / off (Z)'; this.btnFull.onclick = () => this.toggleFullscreen();
     this.btnHelp = el('button', '', '?'); this.btnHelp.onclick = () => this.help.classList.toggle('open');
-    for (const b of [this.btnTour, this.btnNav, this.btnStop, this.btnSet, this.btnFull, this.btnHelp]) gX.appendChild(b);
-    this.ctl.append(gD, gT, gX);
+    for (const b of [this.btnNav, this.btnStop, this.btnSet, this.btnFull, this.btnHelp]) gX.appendChild(b);
+    this.ctl.append(gD, gT, gTour, gX);
     // nav panel
     this.nav = el('div', 'nav panel', '<h4><span>Navigation</span><span id="nav-x" style="cursor:pointer">×</span></h4><div class="srch"><input id="nav-q" type="text" placeholder="search systems (2+ characters)" autocomplete="off" spellcheck="false"></div><div class="list" id="nav-list"></div><div class="foot" id="nav-foot">select a destination</div>');
     // settings
@@ -68,6 +113,7 @@ export class UI {
       <div style="margin-top:8px;color:#8a8a8a">Speed limit inside a heliopause is ${cfg.ship.maxSublightC} c. Beyond it the warp drive steps 1 c → ${cfg.warp.steps[cfg.warp.steps.length - 1].toLocaleString('en-US')} c and the ship brakes itself to sub-light at the next heliopause. Nothing can be landed on; every body has a safe-orbit wall.</div>`);
     this.labelLayer = el('div'); this.labelLayer.style.cssText = 'position:absolute;inset:0;pointer-events:none';
     this.well = el('div', 'well panel', '<canvas width="760" height="64"></canvas>'); this.wellCv = this.well.querySelector('canvas');
+    this.timeFx = new TimeFx(); this.root.appendChild(this.timeFx.canvas);
     this.selP = el('div', 'selp panel', ''); this.selKey = null;
     this.markSel = el('div', 'mark', '<div class="box"></div><div class="arr"></div><div class="tx"></div>'); this.markHome = el('div', 'mark home', '<div class="arr"></div><div class="tx"></div>');
     this.labelLayer.append(this.markSel, this.markHome);
@@ -86,6 +132,7 @@ export class UI {
   }
 
   toggleNav() { this.nav.classList.toggle('open'); if (this.nav.classList.contains('open')) { this.renderNav(true); setTimeout(() => this.navQ.focus(), 0); } }
+  startTour(scope) { const sim = this.sim; if (sim.tour && sim.tour.scope === scope) sim.stopTour(); else sim.beginTour(scope); }
   toggleFullscreen() {
     const d = document, el0 = d.documentElement;
     if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
@@ -412,7 +459,7 @@ export class UI {
     this.fpsAvg += (1 / Math.max(dtReal, 1e-3) - this.fpsAvg) * 0.05;
     $('h-loc').textContent = h.where;
     const dt = dateFromJD(h.jd);
-    $('h-sub').textContent = `${dt.toISOString().replace('T', ' ').slice(0, 19)} UTC  ·  time ×${h.K >= 100 ? Math.round(h.K).toLocaleString('en-US') : h.K.toFixed(h.K < 10 ? 1 : 0)}${sim.timeAuto && sim.course && !h.warp ? ' (auto)' : ''}`;
+    $('h-sub').textContent = `${dt.toISOString().replace('T', ' ').slice(0, 19)} UTC  ·  time ×${h.K >= 100 ? Math.round(h.K).toLocaleString('en-US') : h.K.toFixed(h.K < 10 ? 1 : 0)}${h.K >= 5 ? ' ' + '›'.repeat(Math.min(7, Math.floor(Math.log10(h.K) * 1.1))) : ''}${sim.timeAuto && sim.course && !h.warp ? ' (auto)' : ''}`;
     $('h-sub2').textContent = sim.ref ? `frame: ${sim.ref.name} · ${sim.ref.kind}` : sim.system ? `frame: ${sim.system.name}` : 'frame: interstellar';
     this.updateWell();
     this.banner.style.display = h.fictional ? 'block' : 'none';
@@ -466,17 +513,18 @@ export class UI {
         const x = this.courseP.querySelector('#cc-x'); if (x) x.onclick = () => sim.cancelCourse('Course cleared');
         return_ = true;
       } else
-      this.courseP.innerHTML = `<div class="t">→ ${C.label}${sim.tour ? ' · tour' : ''}</div><div class="d"><span>distance <b>${dist}</b></span><span>ETA <b>${isFinite(eta) ? fmtDuration(eta) : '—'}</b></span><span>elapsed <b>${fmtDuration(h.trip)}</b></span></div><div class="d"><span>${phase}</span><span>${sim.timeAuto && !h.warp ? 'auto time' : ''}</span></div>`;
+      this.courseP.innerHTML = `<div class="t">→ ${C.label}${sim.tour ? (sim.tour.scope === 'stars' ? ' · stars tour' : ' · system tour') : ''}</div><div class="d"><span>distance <b>${dist}</b></span><span>ETA <b>${isFinite(eta) ? fmtDuration(eta) : '—'}</b></span><span>elapsed <b>${fmtDuration(h.trip)}</b></span></div><div class="d"><span>${phase}</span><span>${sim.timeAuto && !h.warp ? 'auto time' : ''}</span></div>`;
     } else if (sim.tour) {
-      const stop = sim.tour.stops[sim.tour.idx];
-      this.courseP.style.display = 'block'; this.courseP.innerHTML = `<div class="t">cinematic tour · ${stop ? stop.note : ''}</div><div class="d"><span>press <b>T</b> or move the controls to take the helm</span></div>`;
+      const T = sim.tour, stop = T.stops[T.idx], where = T.scope === 'stars' ? `${sim.system ? sim.system.name : ''} · ${stop ? stop.note : ''}` : (stop ? stop.note : '');
+      this.courseP.style.display = 'block'; this.courseP.innerHTML = `<div class="t">${T.scope === 'stars' ? 'local stars tour' : 'star system tour'} · ${T.pace} · ${where}</div><div class="d"><span>${T.pace === 'slow' ? 'you set the pace with the <b>TIME</b> buttons · <b>AUTO</b> = fast tour' : 'time compression is automatic · pick a <b>TIME</b> button for a slow tour'}</span></div><div class="d"><span>press <b>T</b> or move the controls to take the helm</span></div>`;
     } else this.courseP.style.display = 'none';
     // buttons
     const autoK = sim.timeAuto || (!h.warp && Math.abs(h.K - sim.timeScale) > 0.02 * sim.timeScale);      // tour / autopilot set the rate themselves
     const cfgSteps = this.cfg.time.steps;
     this.timeBtns.forEach((b, i) => b.classList.toggle('on', !autoK && i === sim.timeIndex)); this.timeBtns.forEach((b, i) => b.classList.toggle('dim', h.warp && cfgSteps[i] > this.cfg.warp.maxTimeCompression)); this.autoT.classList.toggle('on', autoK);
-    this.updateDrive(h);
-    this.btnTour.classList.toggle('on', !!sim.tour);
+    this.updateDrive(h); this.timeFx.update(dtReal, h.K);
+    { const T = sim.tour; this.btnSys.classList.toggle('on', !!T && T.scope === 'system'); this.btnStars.classList.toggle('on', !!T && T.scope === 'stars'); const pace = T ? T.pace : sim.tourPace; this.btnPace.textContent = pace === 'fast' ? 'FAST' : 'SLOW'; this.btnPace.classList.toggle('on', !!T);
+      this.chips.TOUR.textContent = T ? (T.pace === 'fast' ? 'FAST TOUR' : 'SLOW TOUR') : 'TOUR'; }
     // toasts
     this.toast.innerHTML = sim.messages.map((m) => `<div>${m.msg}</div>`).join('');
     this.fps.textContent = `${Math.round(this.fpsAvg)} fps · ${this.gfx.W}×${this.gfx.H}${extra && extra.scale < 0.99 ? ' · scale ' + extra.scale.toFixed(2) : ''}`;

@@ -33,7 +33,7 @@ export class Sim {
     this.messages = []; this.msgTimer = 0;
     this.lastSafeBody = null; this.safeHit = 0;
     this.frameCount = 0;
-    this.tour = null;
+    this.tour = null; this.tourPace = cfg.tour.defaultPace;
     this._destCache = null; this._destT = -1;
     this.eng = { rocket: 0, cruise: 0, warp: 0 }; this.ins = null;
     this.xfer = null; this.thrust = 0; this.thrustT = 0; this.flipping = false; this.intentDir = null;          // engine output, and the flight computer's turn-around state
@@ -138,10 +138,16 @@ export class Sim {
       this.cam.yawT = yaw; this.cam.pitchT = pitch; if (dist != null) this.cam.distT = dist;
     } else { this.cam.yaw = this.cam.yawT = yaw; this.cam.pitch = this.cam.pitchT = pitch; if (dist != null) this.cam.dist = this.cam.distT = dist; }
   }
+  /** between worlds (warping from star to star): the plain chase view with a gentle sway */
+  _tourTravelCam(T, dt) {
+    T.camT = (T.camT || 0) + dt; const L = this.cfg.ship.lengthM, hold = performance.now() < (this.cam.holdUntil || 0), zm = T.zoomMul || 1, sway = T.camT * 0.35;
+    if (!hold) { this.cam.yawT = 0.35 * Math.sin(sway); this.cam.pitchT = 0.3 + 0.06 * Math.sin(sway * 0.7); }
+    this.cam.distT = L * 2.6 * zm;
+  }
   /** cinematic camera director for the tour: keep the visited body behind the ship, sunlit side if possible, with a slow drift */
   _tourCamera(dt) {
     const T = this.tour; if (!T || this.mode !== 'tour') return;
-    const stop = T.stops[T.idx]; const body = this.uni.solar.get(stop.body); if (!body) return;
+    const body = T.curBody; if (!body || !this.system || body.system !== this.system) { this._tourTravelCam(T, dt); return; }
     const bp = body.positionAt(this.jd), sp = this.sysPos();
     const toBody = norm([bp[0] - sp[0], bp[1] - sp[1], bp[2] - sp[2]]);
     T.camT = (T.camT || 0) + dt;
@@ -172,8 +178,14 @@ export class Sim {
     return Math.max(1, Math.min(K, cap * C_KMS / v));
   }
   get kNow() { return this.warp.on ? this._warpK() : this.ins ? this.ins.k : this.xfer ? this.xfer.k : this._capK(this.timeAuto && this.course ? this.timeEff : this.timeScale); }
-  setTimeIndex(i) { this.timeIndex = clamp(i, 0, this.cfg.time.steps.length - 1); this.timeScale = this.cfg.time.steps[this.timeIndex]; this.timeAuto = false; }
-  setTimeAuto(on) { this.timeAuto = on; }
+  setTimeIndex(i) {
+    this.timeIndex = clamp(i, 0, this.cfg.time.steps.length - 1); this.timeScale = this.cfg.time.steps[this.timeIndex]; this.timeAuto = false;
+    if (this.tour && this.tour.pace === 'fast') this.setTourPace('slow');                 // choosing your own time compression during a tour makes it a slow tour
+  }
+  setTimeAuto(on) {
+    if (on && this.tour && this.tour.pace === 'slow') { this.setTourPace('fast'); return; }
+    this.timeAuto = on;
+  }
 
   // ───────────────────────── destinations ─────────────────────────
   getDestinations(force = false) {
@@ -234,8 +246,9 @@ export class Sim {
   }
   stopTour() {
     if (!this.tour) return;
+    const keepTime = this.tour.pace === 'slow';                                   // a slow tour was flown at the pilot's own time compression: leave it
     this.tour = null; if (this.mode === 'tour') this.mode = 'free'; this.course = null; this.timeAuto = false;
-    this.timeIndex = 0; this.timeScale = this.cfg.time.steps[0]; this.timeEff = this.timeScale;          // hand over in real time
+    if (!keepTime) { this.timeIndex = 0; this.timeScale = this.cfg.time.steps[0]; this.timeEff = this.timeScale; }          // hand over in real time
     this.cam.yawT = this.cam.yaw; this.say('Tour ended — you have the helm');
   }
   /** compression for a tour dwell: one orbit of the stop takes about cfg.tour.orbitSeconds of wall-clock time */
@@ -245,29 +258,89 @@ export class Sim {
     const period = 2 * Math.PI * Math.sqrt(Math.pow(o.r, 3) / Math.max(o.body.gm, 1e-6));
     return clamp(period / this.cfg.tour.orbitSeconds, 1, this.cfg.time.steps[this.cfg.time.steps.length - 1]);
   }
-  beginTour() {
-    const stops = this.cfg.tour.stops.filter((s) => this.uni.solar.get(s.body));
-    if (!stops.length) return;
-    if (this.system !== this.uni.solar) { this.say('The tour runs in the Solar System'); return; }
-    this.cancelCourse();
-    this.tour = { idx: -1, phase: 'dwell', timer: 0, stops };
-    this.mode = 'tour'; this.timeAuto = true;
-    this._tourNext(true);
+  /** the stops of a tour of the current star system: the curated list for the Solar System, otherwise its planets by orbit */
+  _systemStops() {
+    const sys = this.system; if (!sys) return [];
+    if (sys === this.uni.solar) return this.cfg.tour.stops.filter((s) => sys.get(s.body));
+    const planets = sys.bodies.filter((b) => (b.kind === 'planet' || b.kind === 'dwarf') && b.semiMajorKm).sort((x, y) => x.semiMajorKm - y.semiMajorKm).slice(0, 9);
+    const stops = planets.map((b) => ({ body: b.id, distance: 6, dwell: 18, legSeconds: 30, timeScale: 'orbit', note: b.name }));
+    if (!stops.length && sys.stars[0]) stops.push({ body: sys.stars[0].id, distance: 4, dwell: 20, legSeconds: 30, timeScale: 'orbit', note: sys.stars[0].name });
+    return stops;
+  }
+  /** scope 'system' (the planets of the star system you are in) or 'stars' (hop between the nearby stars); pace 'slow' (you set the time compression) or 'fast' (automatic) */
+  beginTour(scope = null, pace = null) {
+    pace = pace || this.tourPace; scope = scope || (this.system ? 'system' : 'stars');
+    let stops = [];
+    if (scope === 'system') {
+      if (!this.system) { this.say('Enter a star system first, or take the stars tour'); return; }
+      stops = this._systemStops(); if (!stops.length) { this.say('Nothing to tour here'); return; }
+    }
+    this.cancelCourse(); this.tourPace = pace;
+    this.tour = { scope, pace, idx: -1, phase: 'dwell', timer: 0, stops, visited: new Set(this.system && this.system.starIndices ? this.system.starIndices : []), curBody: null };
+    this.mode = 'tour';
+    if (pace === 'slow') { this.timeAuto = false; this.timeIndex = this.cfg.tour.slowInitialStep[scope]; this.timeScale = this.cfg.time.steps[this.timeIndex]; this.timeEff = this.timeScale; }
+    else this.timeAuto = true;
+    if (scope === 'stars') this._starsHop(); else this._tourNext(true);
+    this.say(`${pace === 'slow' ? 'Slow' : 'Fast'} ${scope === 'stars' ? 'local stars' : 'star system'} tour${pace === 'slow' ? ' — set the pace with the TIME buttons' : ''}`, 4);
+  }
+  /** change the pace of the running tour (or the pace the next tour starts with) */
+  setTourPace(pace) {
+    this.tourPace = pace; const T = this.tour; if (!T || T.pace === pace) return;
+    T.pace = pace;
+    if (pace === 'slow') this.timeAuto = false;
+    else { this.timeAuto = true; if (T.phase === 'dwell') { const stop = T.stops[T.idx] || { timeScale: 'orbit' }; this.timeScale = this._dwellScale(stop); this.timeEff = this.timeScale; this.timeAuto = false; } }
+    this.say(pace === 'slow' ? 'Slow tour — you set the time compression' : 'Fast tour — time compression is automatic', 3);
+  }
+  _dwellStart(stop) {
+    const T = this.tour, slow = T.pace === 'slow';
+    T.phase = 'dwell'; T.timer = stop.dwell * (slow ? this.cfg.tour.slowDwellFactor : 1); this.timeAuto = false; this.mode = 'tour';
+    if (!slow) { this.timeScale = this._dwellScale(stop); this.timeEff = this.timeScale; }
+    T.curBody = this.orbit ? this.orbit.body : T.curBody;
   }
   _tourNext(first = false) {
-    const T = this.tour; T.idx = (T.idx + 1) % T.stops.length;
+    const T = this.tour; if (T.scope === 'stars') { this._starsHop(); return; }
+    T.idx = (T.idx + 1) % T.stops.length;
     const stop = T.stops[T.idx];
-    const body = this.uni.solar.get(stop.body);
+    const body = this.system.get(stop.body);
+    if (!body) { T.stops.splice(T.idx, 1); if (!T.stops.length) this.stopTour(); else { T.idx--; this._tourNext(first); } return; }
+    T.curBody = body;
     if (first && stop.legSeconds === 0) {
       this.warp.on = false; this.warp.c = 0; this.warp.form = 0;
       this.placeAtBody(body, stop.distance, 0.9, 0.3);
-      T.phase = 'dwell'; T.timer = stop.dwell; this.timeScale = this._dwellScale(stop); this.timeEff = this.timeScale; this.timeAuto = false; this.mode = 'tour';
+      this._dwellStart(stop);
       return;
     }
     T.phase = 'travel';
     this.course = { kind: 'body', body, radius: Math.max(body.safeRadiusKm(this.cfg), body.radiusKm * stop.distance), targetSeconds: stop.legSeconds, tour: true, engaged: true, label: body.name };
-    this.timeAuto = true; this.mode = 'tour';
+    this.timeAuto = T.pace === 'fast'; this.mode = 'tour';
     this.trip = { elapsed: 0, label: body.name };
+  }
+  /** stars tour: pick the nearest star system not yet visited (wrapping round when all are done) and warp there */
+  _starsHop() {
+    const T = this.tour; T.phase = 'travel'; T.curBody = null;
+    const inRange = this.getDestinations(true).systems.filter((d) => !d.outOfRange);
+    const seen = (d) => d.group.members.some((m) => T.visited.has(m));
+    let pick = inRange.find((d) => !seen(d));
+    if (!pick) { T.visited.clear(); if (this.system && this.system.starIndices) for (const i of this.system.starIndices) T.visited.add(i); pick = inRange[0]; }
+    if (!pick) { this.say('No star systems in range for the tour'); this.stopTour(); return; }
+    for (const m of pick.group.members) T.visited.add(m);
+    const sys = this.uni.systemForGroup(pick.group);
+    this.breakOrbit(); this.xfer = null; this.ins = null;
+    this.course = { kind: 'system', group: pick.group, system: sys, name: pick.name, targetPc: pick.group.centre, phase: 'align', label: pick.name, hpKm: this.uni.heliopauseOfStar(pick.group.primary), engaged: true, tour: true };
+    this.timeAuto = T.pace === 'fast'; this.mode = 'tour';
+    this.trip = { elapsed: 0, label: pick.name };
+    this.say(`Next stop: ${pick.name} — ${pick.distLy.toFixed(2)} ly`, 4);
+  }
+  /** stars tour: we are inside the new system — fly to its most interesting world (or the star) and settle into orbit */
+  _starsTourArrived(C) {
+    const T = this.tour, sys = C.system;
+    const worlds = sys.bodies.filter((b) => (b.kind === 'planet') && b.radiusKm > 2000).sort((x, y) => (x.semiMajorKm || 0) - (y.semiMajorKm || 0));
+    const hz = worlds.find((b) => b.habitable || b.inHabitableZone) || worlds[Math.floor(worlds.length / 2)] || worlds[0];
+    const body = hz || sys.stars[0];
+    T.curBody = body; T.stops = [{ body: body.id, distance: 6, dwell: this.cfg.tour.starsDwell, legSeconds: this.cfg.tour.starsLegSeconds, timeScale: 'orbit', note: body.name }]; T.idx = 0;
+    this.course = { kind: 'body', body, radius: Math.max(body.safeRadiusKm(this.cfg), body.radiusKm * (body.kind === 'star' ? 4 : 6)), targetSeconds: this.cfg.tour.starsLegSeconds, tour: true, engaged: true, label: body.name };
+    this.timeAuto = T.pace === 'fast'; this.mode = 'tour'; this.trip = { elapsed: 0, label: body.name };
+    this.say(`Arrived at ${C.name} — visiting ${body.name}`, 4);
   }
   /** mode 'orbit': fly to the safe low orbit; 'approach': stop and hold position at a standoff distance (autopilot.approachRadii body radii) */
   setCourseBody(body, mode = 'orbit', altKm = null) {
@@ -642,7 +715,7 @@ export class Sim {
 
   // ───────────────────────── warp motion ─────────────────────────
   /** time compression while warping: limited so the governor (which brakes at the heliopause) stays accurate; travel time scales with it, the warp visuals do not */
-  _warpK() { return clamp(this.timeScale, 1, this.cfg.warp.maxTimeCompression); }
+  _warpK() { if (this.tour && this.tour.pace === 'fast') return this.cfg.tour.fastWarpK; return clamp(this.timeScale, 1, this.cfg.warp.maxTimeCompression); }
   _warpMulti(dtSim) {
     const n = Math.min(80, Math.max(1, Math.ceil(dtSim / 0.08))), ds = dtSim / n;       // ≤ 0.08 s of simulated time per sub-step
     for (let i = 0; i < n && this.warp.on; i++) this._warpStep(ds);
@@ -657,8 +730,9 @@ export class Sim {
     // autopilot ramps the step up while the governor allows
     if (this.course && this.course.kind === 'system' && !w.dropping && this.course.phase === 'warp' && this.course.engaged && !this.course.userStep) {
       w.rampTimer += dt;
-      if (w.step < W.steps.length - 1 && w.rampTimer > W.secondsPerStep && w.c >= W.steps[w.step] * 0.97) { w.step++; w.rampTimer = 0; }
-      targetC = Math.min(W.steps[w.step], Math.max(g.capC, subC));
+      const topStep = (this.tour && this.tour.pace === 'slow') ? Math.min(this.cfg.tour.slowWarpStep, W.steps.length - 1) : W.steps.length - 1;
+      if (w.step < topStep && w.rampTimer > W.secondsPerStep && w.c >= W.steps[w.step] * 0.97) { w.step++; w.rampTimer = 0; }
+      targetC = Math.min(W.steps[Math.min(w.step, topStep)], Math.max(g.capC, subC));
       targetC = Math.max(targetC, subC);
     }
     let lv = Math.log10(Math.max(w.c, 1e-3)), lt = Math.log10(Math.max(targetC, 1e-3));
@@ -903,11 +977,8 @@ export class Sim {
   }
   _tourOrDone(C) {
     this.course = null;
-    if (this.tour) {
-      const stop = this.tour.stops[this.tour.idx];
-      this.tour.phase = 'dwell'; this.tour.timer = stop.dwell; this.timeScale = this._dwellScale(stop); this.timeAuto = false; this.timeEff = this.timeScale;
-      this.mode = 'tour';
-    } else { this.mode = 'free'; this.timeAuto = false; }
+    if (this.tour) { const stop = this.tour.stops[this.tour.idx]; this._dwellStart(stop || { dwell: 20, timeScale: 'orbit' }); }
+    else { this.mode = 'free'; this.timeAuto = false; }
   }
 
   _autoTime(x, db, cruise, tau, C, dStop, B, xm = 1, xh = 0) {
@@ -932,6 +1003,7 @@ export class Sim {
     const S = this.cfg.ship, A = this.cfg.autopilot;
     // arrived inside the destination system?
     if (this.system && this.system === C.system) {
+      if (this.tour && this.tour.scope === 'stars' && C.tour) { this._starsTourArrived(C); return; }
       if (A.continueToStar) {
         const star = C.system.stars[0];
         this.course = { kind: 'body', body: star, radius: star.safeRadiusKm(this.cfg), targetSeconds: this.cfg.time.auto.targetSeconds, label: star.name, engaged: true };
@@ -948,7 +1020,10 @@ export class Sim {
     const f = this.forward();
     const ang = f.angleTo(wantDir);
     if (!this.warp.on || this.warp.c < 3) this._lookAlong(wantDir, S_TURN(this.cfg, dt, ang));
-    else this._lookAlong(wantDir, 0.35 * dt);
+    else {                                                                    // under warp the bubble carries the ship along its course: keep it pointed exactly (a lazy slew would drift light-years off at these speeds)
+      const upv = this.up().clone(), m = new THREE.Matrix4().lookAt(new THREE.Vector3(), wantDir, Math.abs(upv.dot(wantDir)) > 0.98 ? new THREE.Vector3(0, 0, 1) : upv), qt = new THREE.Quaternion().setFromRotationMatrix(m);
+      this.q.slerp(qt, 1 - Math.exp(-dt * 3));
+    }
 
     if (C.phase === 'align') {
       this.breakOrbit();

@@ -256,6 +256,13 @@ window.SIM_CONFIG = {
       { body: "pluto",   distance: 6.5,  dwell: 18, legSeconds: 40, timeScale: "orbit", note: "Pluto" },
     ],
     loop: true,
+    defaultPace: "fast",          // "fast": time compression is automatic · "slow": you set it with the TIME buttons (choosing a TIME button during a fast tour switches it to slow; AUTO switches back)
+    slowInitialStep: { system: 2, stars: 4 },   // index into time.steps a slow tour starts at (x100 for a system tour, x10 000 for the stars tour)
+    slowDwellFactor: 2,           // slow tours linger this much longer at each stop
+    slowWarpStep: 5,              // the stars tour warps no faster than this step (index into warp.steps) when slow: 100 000 c
+    fastWarpK: 10,                // time compression while warping on a fast stars tour
+    starsDwell: 30,               // stars tour: seconds spent at each system
+    starsLegSeconds: 40,          // stars tour: wall-clock seconds for the flight from the system edge to its world
     orbitSeconds: 90,             // timeScale "orbit" picks a compression so one orbit of the stop takes about this long (a number sets it directly)
     cameraDriftDegPerSec: 1.6,    // slow orbit of the camera around the ship during the tour
   },

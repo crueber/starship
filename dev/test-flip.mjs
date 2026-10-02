@@ -197,4 +197,29 @@ const ang = (S) => (S.forward().angleTo(new THREE.Vector3(...S.vel).normalize())
     if (!(maxCamDrift > 1.5)) throw new Error('camera was dragged along by the computer\'s turns');
   }
 }
+
+{ // tours: scope (system / stars) × pace (slow / fast)
+  const run = (scope, pace, secs, until) => {
+    const S = new Sim(uni, cfg); S.startTour = false; S.beginTour(scope, pace); const seen = new Set(); let maxK = 0, minK = 1e9, dwells = 0, prev = '';
+    for (let i = 0; i < 60 * secs; i++) {
+      S.update(1 / 60); if (!S.tour) throw new Error(`${scope} ${pace} tour ended early`);
+      if (S.tour.phase === 'dwell' && prev !== 'dwell') dwells++; prev = S.tour.phase;
+      if (S.system) seen.add(S.system.name); if (!S.ins && !S.warp.on) { maxK = Math.max(maxK, S.kNow); minK = Math.min(minK, S.kNow); }
+      if (until && until(S)) break;
+    }
+    return { S, seen: [...seen], dwells, maxK, minK };
+  };
+  const a = run('system', 'fast', 200); console.log(`system/fast: ${a.dwells} dwells in 200 s, K ${a.minK.toFixed(0)}-${a.maxK.toFixed(0)}`);
+  const b = run('system', 'slow', 200); console.log(`system/slow: ${b.dwells} dwells in 200 s, K ${b.minK.toFixed(0)}-${b.maxK.toFixed(0)} (the user's x${cfg.time.steps[cfg.tour.slowInitialStep.system]})`);
+  if (!(a.dwells >= 2) || !(a.maxK > 300)) throw new Error('fast system tour should move quickly through stops with automatic compression');
+  if (!(b.maxK <= cfg.time.steps[cfg.tour.slowInitialStep.system] + 1e-6)) throw new Error('slow tour must never exceed the pilot\'s time compression');
+  const c = run('stars', 'fast', 400); console.log(`stars/fast: visited ${c.seen.join(', ')}; ${c.dwells} dwells`);
+  if (!(c.seen.length >= 3 && c.dwells >= 2)) throw new Error('stars tour should hop between several systems');
+  const d = run('stars', 'slow', 300); console.log(`stars/slow: visited ${d.seen.join(', ')}`);
+  // switching: choosing a TIME button during a fast tour makes it slow; AUTO makes it fast again
+  const S = new Sim(uni, cfg); S.startTour = false; S.beginTour('system', 'fast'); for (let i = 0; i < 600; i++) S.update(1 / 60);
+  S.setTimeIndex(3); if (S.tour.pace !== 'slow' || Math.abs(S.kNow - 1000) > 1) throw new Error('TIME button should switch to the slow tour at that compression');
+  for (let i = 0; i < 600; i++) S.update(1 / 60); S.setTimeAuto(true); if (S.tour.pace !== 'fast') throw new Error('AUTO should switch back to the fast tour');
+  S.stopTour(); if (S.timeScale !== 1) throw new Error('a fast tour hands over in real time');
+}
 console.log('flip-and-burn checks passed');
