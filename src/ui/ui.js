@@ -43,6 +43,61 @@ class TimeFx {
   }
 }
 
+
+/** A small top-down map of the star system you are in: the star, the planets on their orbits (log-scaled so the inner ones are visible), and your ship with its heading and what the camera sees. */
+class SysMap {
+  constructor(ui) {
+    this.ui = ui; this.t = 0; this.W = 148; this.on = ui.cfg.ui.systemMap !== false;
+    this.box = document.createElement('div'); this.box.className = 'smap';
+    this.cv = document.createElement('canvas'); this.cap = document.createElement('div'); this.cap.className = 'cap';
+    this.box.append(this.cv, this.cap);
+  }
+  toggle() { this.on = !this.on; if (!this.on) this.box.style.display = 'none'; }
+  draw(dt) {
+    const ui = this.ui, sim = ui.sim, sys = sim.system;
+    if (!this.on || ui.hidden || !sys) { this.box.style.display = 'none'; return; }
+    this.t += dt; if (this.t < 1 / 30) return; this.t = 0; this.box.style.display = 'block';
+    const W = this.W, dpr = Math.min(2, window.devicePixelRatio || 1), cv = this.cv;
+    if (cv.width !== W * dpr) { cv.width = cv.height = W * dpr; cv.style.width = cv.style.height = W + 'px'; }
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, W);
+    const jd = sim.jd, C = W / 2, Rpx = W / 2 - 9;
+    const bodies = sys.bodies.filter((b) => (b.kind === 'planet' || b.kind === 'dwarf') && b.semiMajorKm);
+    const planets = bodies.filter((b) => b.kind === 'planet'), dwarfs = bodies.filter((b) => b.kind === 'dwarf');
+    const sp = sim.sysPos(jd);
+    let Rmax = 0; for (const b of bodies) Rmax = Math.max(Rmax, b.semiMajorKm * 1.08);
+    Rmax = Math.max(Rmax, Math.hypot(sp[0], sp[1]) * 1.02 > Rmax * 1.0 && Math.hypot(sp[0], sp[1]) < Rmax * 3 ? Math.hypot(sp[0], sp[1]) * 1.02 : 0, 1e7);
+    const r0 = Rmax * 0.012, f = (r) => Math.log1p(r / r0) / Math.log1p(Rmax / r0);
+    const P = (x, y) => { const r = Math.hypot(x, y), a = Math.atan2(y, x), k = r > 1 ? f(r) * Rpx / r : 0; return [C + x * k, C - y * k]; };         // true azimuth, log radius; +y is up
+    g.lineWidth = 1;
+    // orbits
+    g.strokeStyle = 'rgba(210,220,255,0.16)';
+    for (const b of bodies) { g.beginPath(); g.arc(C, C, f(b.semiMajorKm) * Rpx, 0, Math.PI * 2); g.stroke(); }
+    // star(s)
+    for (const st of sys.stars) { const p = st.positionAt(jd), q = P(p[0], p[1]); g.fillStyle = '#ffe6b0'; g.beginPath(); g.arc(q[0], q[1], 3.2, 0, Math.PI * 2); g.fill(); }
+    // worlds
+    const sel = ui.selected && ui.selected.type === 'body' ? ui.selected.body : null;
+    for (const b of bodies) {
+      const p = b.positionAt(jd), q = P(p[0], p[1]), isP = b.kind === 'planet';
+      g.fillStyle = isP ? 'rgba(235,240,255,0.9)' : 'rgba(200,210,235,0.55)'; g.beginPath(); g.arc(q[0], q[1], isP ? 2.2 : 1.4, 0, Math.PI * 2); g.fill();
+      if (b === sim.ref || (sim.ref && sim.ref.parent === b) || b === sel) { g.strokeStyle = b === sel ? '#fff' : 'rgba(255,255,255,0.7)'; g.beginPath(); g.arc(q[0], q[1], 5, 0, Math.PI * 2); g.stroke(); }
+    }
+    // course line
+    const cr = sim.course; if (cr && cr.kind === 'body' && cr.body.system === sys) { const bp = cr.body.positionAt(jd), a = P(sp[0], sp[1]), b2 = P(bp[0], bp[1]); g.strokeStyle = 'rgba(255,255,255,0.35)'; g.setLineDash([2, 3]); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b2[0], b2[1]); g.stroke(); g.setLineDash([]); }
+    // camera view wedge
+    const v = ui._view, S = P(sp[0], sp[1]);
+    if (v) { const fw = new THREE.Vector3(0, 0, -1).applyMatrix3(v.clone().transpose()), inPlane = Math.hypot(fw.x, fw.y);
+      if (inPlane > 0.15) { const a = Math.atan2(-fw.y, fw.x), half = (ui.cfg.camera.fovDeg * Math.PI / 180) * 0.8 * (0.35 + 0.65 * inPlane); g.fillStyle = `rgba(190,210,255,${0.14 * inPlane})`; g.beginPath(); g.moveTo(S[0], S[1]); g.arc(S[0], S[1], 30, a - half, a + half); g.closePath(); g.fill(); } }
+    // the ship: a triangle along its heading in the plane; a ring with a dot / cross when it points out of the plane
+    const fwd = sim.forward(), hp = Math.hypot(fwd.x, fwd.y);
+    g.fillStyle = '#fff'; g.strokeStyle = '#fff';
+    if (hp > 0.3) { const a = Math.atan2(-fwd.y, fwd.x); g.save(); g.translate(S[0], S[1]); g.rotate(a); g.beginPath(); g.moveTo(6, 0); g.lineTo(-4, -3.6); g.lineTo(-2, 0); g.lineTo(-4, 3.6); g.closePath(); g.fill(); g.restore(); }
+    else { g.beginPath(); g.arc(S[0], S[1], 4, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.arc(S[0], S[1], 1.4, 0, Math.PI * 2); if (fwd.z > 0) g.fill(); else { g.moveTo(S[0] - 2.4, S[1] - 2.4); g.lineTo(S[0] + 2.4, S[1] + 2.4); g.moveTo(S[0] + 2.4, S[1] - 2.4); g.lineTo(S[0] - 2.4, S[1] + 2.4); g.stroke(); } }
+    // caption
+    const n = planets.length, d = dwarfs.length;
+    this.cap.textContent = `${n} planet${n === 1 ? '' : 's'}${d ? ` · ${d} dwarf` : ''}${sys.fictional ? ' · fictional' : ''}`;
+  }
+}
+
 export class UI {
   constructor(sim, cfg, gfx, canvas) {
     this.sim = sim; this.cfg = cfg; this.gfx = gfx; this.canvas = canvas;
@@ -59,6 +114,7 @@ export class UI {
     this.tl = el('div', 'tl panel'); this.tl.style.padding = '7px 11px';
     this.tl.innerHTML = '<div class="loc" id="h-loc"></div><div class="sub" id="h-sub"></div><div class="sub" id="h-sub2"></div>';
     this.timeFx = new TimeFx(this.tl, cfg); this.root.appendChild(this.timeFx.glow);
+    this.sysMap = new SysMap(this); this.root.appendChild(this.sysMap.box);
     this.tr = el('div', 'tr');
     this.chips = {};
     for (const k of ['TOUR', 'FREE', 'AUTO', 'WARP']) { const c = el('div', 'chip', k); this.chips[k] = c; this.tr.appendChild(c); }
@@ -105,7 +161,7 @@ export class UI {
       <div><kbd>right-drag</kbd> / <kbd>Shift</kbd>+drag steer ship</div><div><kbd>C</kbd> recentre camera · <kbd>V</kbd> first-person</div>
       <div><kbd>=</kbd><kbd>-</kbd> / wheel on the drive slider: step through rocket → nacelle → warp speeds</div><div><kbd>G</kbd> engage / drop warp · <kbd>]</kbd><kbd>[</kbd> warp step</div><div><kbd>1</kbd>–<kbd>8</kbd> time compression · <kbd>0</kbd> auto</div>
       <div><kbd>N</kbd> navigation · <kbd>Enter</kbd> set course</div><div><kbd>T</kbd> tour on / off · <kbd>,</kbd> settings</div>
-      <div><kbd>O</kbd> orbit lines · <kbd>L</kbd> labels</div><div><kbd>Z</kbd> full screen · <kbd>H</kbd> hide interface · <kbd>?</kbd> this help</div></div>
+      <div><kbd>O</kbd> orbit lines · <kbd>L</kbd> labels</div><div><kbd>M</kbd> system map · <kbd>Z</kbd> full screen · <kbd>H</kbd> hide interface · <kbd>?</kbd> this help</div></div>
       <div style="margin-top:8px;color:#8a8a8a">Speed limit inside a heliopause is ${cfg.ship.maxSublightC} c. Beyond it the warp drive steps 1 c → ${cfg.warp.steps[cfg.warp.steps.length - 1].toLocaleString('en-US')} c and the ship brakes itself to sub-light at the next heliopause. Nothing can be landed on; every body has a safe-orbit wall.</div>`);
     this.labelLayer = el('div'); this.labelLayer.style.cssText = 'position:absolute;inset:0;pointer-events:none';
     this.well = el('div', 'well panel', '<canvas width="760" height="64"></canvas>'); this.wellCv = this.well.querySelector('canvas');
@@ -202,6 +258,7 @@ export class UI {
       else if (k === '[' || k === 'pagedown') sim.stepWarp(-1);
       else if (k === 'x') this.stopAll();
       else if (k === 'p') sim.engageAutopilot();
+      else if (k === 'm') this.sysMap.toggle();
       else if (k === '=' || k === '+') this.stepDrive(1);
       else if (k === '-' || k === '_') this.stepDrive(-1);
       else if (k === 'o') this.cfg.visuals.orbitLines.enabled = !this.cfg.visuals.orbitLines.enabled;
@@ -456,7 +513,7 @@ export class UI {
     const dt = dateFromJD(h.jd);
     $('h-sub').textContent = `${dt.toISOString().replace('T', ' ').slice(0, 19)} UTC  ·  time ×${h.K >= 100 ? Math.round(h.K).toLocaleString('en-US') : h.K.toFixed(h.K < 10 ? 1 : 0)}${h.K >= 5 ? ' ' + '›'.repeat(Math.min(7, Math.floor(Math.log10(h.K) * 1.1))) : ''}${sim.timeAuto && sim.course && !h.warp ? ' (auto)' : ''}`;
     $('h-sub2').textContent = sim.ref ? `frame: ${sim.ref.name} · ${sim.ref.kind}` : sim.system ? `frame: ${sim.system.name}` : 'frame: interstellar';
-    this.updateWell();
+    this.updateWell(); this.sysMap.draw(dtReal);
     this.banner.style.display = h.fictional ? 'block' : 'none';
     this.banner.textContent = h.fictional ? 'fictional system · procedurally generated · no confirmed planets' : '';
     // chips
@@ -566,7 +623,7 @@ export class UI {
   }
   /** the selected object's on-screen indicator + panel, and the home marker (Earth inside the Solar System, Sol everywhere else) */
   updateMarkers(view, fovDeg) {
-    const sim = this.sim, uni = sim.uni;
+    const sim = this.sim, uni = sim.uni; this._view = view;
     if (this.hidden) { this.markSel.style.display = 'none'; this.markHome.style.display = 'none'; this.selP.style.display = 'none'; return; }
     // home
     let rel = null, name = '';

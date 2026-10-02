@@ -46,6 +46,7 @@ Tip: it makes a good wallpaper. Press **H** to hide the interface and leave it o
 | `G` | Warp on / off |
 | `W` `S` | Faster / slower |
 | mouse drag | Look around the ship; scroll to zoom |
+| `M` | Small map of the star system |
 | `H` | Hide the interface |
 | `?` | Full help |
 

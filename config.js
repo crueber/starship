@@ -332,6 +332,7 @@ window.SIM_CONFIG = {
     showHud: true,
     units: "auto",               // "auto" | "km" | "au" | "ly"
     keyHints: true,
+    systemMap: true,             // small top-down map of the star system (right side); M toggles it
     timeGlow: true,              // a faint cool glow in the corners of the screen when time compression is very high (the clock dial in the top-left panel is always on)
     settingsPanel: true,
   },

@@ -52,6 +52,10 @@ button:hover{background:rgba(255,255,255,.16)}button.on{background:#ddd;color:#1
 .set .sec{margin-top:10px;color:var(--faint);letter-spacing:.14em;font-size:9px;text-transform:uppercase}
 .toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:flex;flex-direction:column;gap:3px;align-items:center}
 .toast div{padding:3px 10px;background:var(--bg);border:1px solid var(--line);color:#eee}
+.smap{position:absolute;right:14px;bottom:210px;display:none;opacity:.78;pointer-events:none;text-align:center;transition:opacity .3s}
+.smap canvas{display:block;border:1px solid var(--line);border-radius:50%;background:radial-gradient(circle,rgba(8,10,18,.55) 0,rgba(8,10,18,.35) 70%,rgba(8,10,18,0) 100%)}
+.smap .cap{margin-top:3px;font-size:9px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+@media(max-height:760px){.smap{display:none!important}}
 .well{position:absolute;left:50%;top:8px;transform:translateX(-50%);padding:3px 6px;pointer-events:none}.well canvas{display:block;width:420px;height:76px}
 @media(max-width:1000px){.well{display:none!important}}
 .banner{position:absolute;left:50%;top:84px;transform:translateX(-50%);padding:3px 12px;border:1px solid #aaa;letter-spacing:.14em;color:#ddd;background:var(--bg);display:none;text-transform:uppercase;font-size:10px}

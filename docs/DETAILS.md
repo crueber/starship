@@ -49,6 +49,10 @@ Two kinds of tour (bottom-right, **TOUR** row), each at two paces:
 
 While time is compressed, a small watch dial in the top-left clock panel shows it: a lazy second hand at ×1, then a hand that spins faster with every decade, trailing a glowing sweep that fills the whole dial at the top of the range. Chevrons follow the clock readout, and at very high compression a faint cool glow breathes in the corners of the screen (`ui.timeGlow` turns that off).
 
+## System map
+
+A small round top-down map sits on the right edge (`M` toggles it, `ui.systemMap` turns it off; it hides itself on short windows). It shows the star system you are in: the star, each planet on its orbit at its true bearing (radius is log-scaled so the inner worlds stay visible), dwarf planets as fainter dots, the world you are orbiting or have selected ringed, and your ship as a triangle pointing along its heading, with a pale wedge for where the camera is looking. A dotted line runs to the target of a set course. The caption counts the planets (and dwarf planets); it is hidden between stars.
+
 ## Gravity-well gauge
 
 A gauge at the top centre is always on. It is a log-scale bar from the star's surface (bright = deep in the well) out to its **heliopause**, with the planets' orbit ticks, decade marks in AU and a marker for the ship. Below it: distance from the star, escape speed and local gravity at the ship, and how far you are to the heliopause (as a percentage and a distance). Between stars it shows the nearest star's well, with the marker pinned at the right edge and the distance outside its heliopause.
