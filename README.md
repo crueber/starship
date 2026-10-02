@@ -1,6 +1,8 @@
 # 🚀 Starship
 
 **Fly a little starship from Earth to the nearest stars, right in your browser.**
+
+### ▶ [Launch it: crueber.github.io/starship](https://crueber.github.io/starship/)
 No install, no internet, no server. Open `index.html` and you're in space.
 
 ![A ship inside its warp bubble, stars streaming past](docs/warp-bubble.jpg)
@@ -30,6 +32,10 @@ One slider runs all three: orange for rocket, white for cruise, blue for warp.
 ![Orbiting Earth](docs/orbit-hud.jpg)
 
 ## Try it
+
+Online: **[crueber.github.io/starship](https://crueber.github.io/starship/)** (the first load is about 30 MB, then it's cached).
+
+Or offline: download the repo and
 
 1. Open **`index.html`** in a modern browser (Chrome, Edge, Brave, Firefox or Safari).
 2. Sit back. A tour of the Solar System starts by itself. There is also a tour of the nearby stars (the **STARS** button), and each tour can run **FAST** (time speeds up automatically) or **SLOW** (you pick the speed).
