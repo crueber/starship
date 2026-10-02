@@ -81,6 +81,17 @@ class SysMap {
       g.fillStyle = isP ? 'rgba(235,240,255,0.9)' : 'rgba(200,210,235,0.55)'; g.beginPath(); g.arc(q[0], q[1], isP ? 2.2 : 1.4, 0, Math.PI * 2); g.fill();
       if (b === sim.ref || (sim.ref && sim.ref.parent === b) || b === sel) { g.strokeStyle = b === sel ? '#fff' : 'rgba(255,255,255,0.7)'; g.beginPath(); g.arc(q[0], q[1], 5, 0, Math.PI * 2); g.stroke(); }
     }
+    // visitors in this system: a small diamond each, with a ping ring every few seconds so movement catches the eye
+    const vis = ui.visitors && ui.visitors.state === 'on' ? ui.visitors.view.filter((v) => v.sameSystem) : [];
+    const tNow = performance.now() / 1000;
+    for (const v of vis) {
+      const q = P(sp[0] + v.relKm[0], sp[1] + v.relKm[1]);
+      let h = 0; for (let i = 0; i < v.name.length; i++) h = (h * 31 + v.name.charCodeAt(i)) % 997;
+      const period = 5, ph = ((tNow + h * 0.37) % period) / period;                       // each visitor pings on its own schedule
+      if (ph < 0.3) { const k = ph / 0.3; g.strokeStyle = `rgba(150,205,255,${0.75 * (1 - k)})`; g.lineWidth = 1.2; g.beginPath(); g.arc(q[0], q[1], 3 + 15 * k, 0, Math.PI * 2); g.stroke(); }
+      g.strokeStyle = '#9fd0ff'; g.fillStyle = 'rgba(159,208,255,0.35)'; g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(q[0], q[1] - 3.6); g.lineTo(q[0] + 3.6, q[1]); g.lineTo(q[0], q[1] + 3.6); g.lineTo(q[0] - 3.6, q[1]); g.closePath(); g.fill(); g.stroke();
+    }
     // course line
     const cr = sim.course; if (cr && cr.kind === 'body' && cr.body.system === sys) { const bp = cr.body.positionAt(jd), a = P(sp[0], sp[1]), b2 = P(bp[0], bp[1]); g.strokeStyle = 'rgba(255,255,255,0.35)'; g.setLineDash([2, 3]); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b2[0], b2[1]); g.stroke(); g.setLineDash([]); }
     // camera view wedge
@@ -94,7 +105,7 @@ class SysMap {
     else { g.beginPath(); g.arc(S[0], S[1], 4, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.arc(S[0], S[1], 1.4, 0, Math.PI * 2); if (fwd.z > 0) g.fill(); else { g.moveTo(S[0] - 2.4, S[1] - 2.4); g.lineTo(S[0] + 2.4, S[1] + 2.4); g.moveTo(S[0] + 2.4, S[1] - 2.4); g.lineTo(S[0] - 2.4, S[1] + 2.4); g.stroke(); } }
     // caption
     const n = planets.length, d = dwarfs.length;
-    this.cap.textContent = `${n} planet${n === 1 ? '' : 's'}${d ? ` · ${d} dwarf` : ''}${sys.fictional ? ' · fictional' : ''}`;
+    this.cap.textContent = `${n} planet${n === 1 ? '' : 's'}${d ? ` · ${d} dwarf` : ''}${sys.fictional ? ' · fictional' : ''}${vis.length ? ` · ${vis.length} visitor${vis.length > 1 ? 's' : ''}` : ''}`;
   }
 }
 
@@ -593,9 +604,9 @@ export class UI {
     if (this.visP.classList.contains('open')) { this.nav.classList.remove('open'); this.visKey = ''; this.renderVisitors(true); }
   }
   renderVisitors(force = false) {
-    const V = this.visitors, P = this.visP; if (!P.classList.contains('open')) return;
+    const V = this.visitors, P = this.visP, sim0 = this.sim; if (!P.classList.contains('open')) return;
     const list = V.view, st = V.state, wait = V.rerollWait;
-    const key = [st, V.error, V.callsign, V.count, list.map((v) => v.name + Math.round(Math.log10(v.distKm + 1) * 4)).join('|'), wait > 0 ? Math.ceil(wait) : 0].join('§');
+    const key = [st, V.error, V.callsign, V.count, this.sim.system ? this.sim.system.name : '', list.map((v) => v.name + Math.round(Math.log10(v.distKm + 1) * 4)).join('|'), wait > 0 ? Math.ceil(wait) : 0].join('§');
     if (!force && key === this.visKey) return; this.visKey = key;
     const fmtD = (km) => (km >= 9.46e12 * 0.05 ? (km / 9.4607e12).toFixed(2) + ' ly' : km >= 1.496e8 * 0.05 ? (km / 1.496e8).toFixed(2) + ' AU' : fmtDistance(km));
     let h = '<h4><span>Visitors</span><span id="vis-x" style="cursor:pointer">×</span></h4><div class="body">';
@@ -605,7 +616,9 @@ export class UI {
       h += '<button id="vis-join">JOIN</button>';
     } else {
       h += `<div class="me">you are<br><b>${V.callsign}</b></div><div class="row"><button id="vis-reroll" ${wait > 0 ? 'disabled' : ''}>RE-ROLL${wait > 0 ? ' · ' + Math.ceil(wait) + 's' : ''}</button><button id="vis-leave">LEAVE</button></div>`;
-      h += `<div class="sec">${st === 'joining' ? 'connecting…' : list.length ? list.length + ' visitor' + (list.length > 1 ? 's' : '') + ' online' : 'looking for visitors… (nobody else may be here right now)'}</div>`;
+      const total = list.length + 1;
+      h += `<div class="count"><b>${st === 'joining' ? '…' : total}</b> ${total === 1 ? 'visitor' : 'visitors'} present<span>${st === 'joining' ? 'connecting…' : list.length ? `you + ${list.length} other${list.length > 1 ? 's' : ''}` : 'just you so far; others appear here as they arrive'}</span></div>`;
+      h += `<div class="item you"><span class="n">${V.callsign}</span><span class="m">you</span></div><div class="where">${sim0.system ? 'in ' + sim0.system.name : 'interstellar space'}</div>`;
       for (const v of list.slice(0, 12)) h += `<div class="item"><span class="n">${v.name}</span><span class="m">${fmtD(v.distKm)}</span></div><div class="where">${v.sameSystem ? 'in this system' : v.sysName || 'elsewhere'}${v.eng[2] > 0.1 ? ' · warp' : v.eng[1] > 0.1 ? ' · cruise' : v.eng[0] > 0.1 ? ' · burning' : ''}</div>`;
     }
     P.innerHTML = h + '</div>';
@@ -618,17 +631,21 @@ export class UI {
   /** markers for visitors in view: a small diamond, the callsign, and the distance */
   updateVisitors(view, fovDeg) {
     const V = this.visitors; this.renderVisitors();
-    const n = V.count; const t = 'VISITORS' + (V.state === 'on' && n ? ` · ${n}` : ''); if (this.btnVis.textContent !== t) this.btnVis.textContent = t;
+    const t = 'VISITORS' + (V.state === 'on' ? ` · ${V.count + 1}` : ''); if (this.btnVis.textContent !== t) this.btnVis.textContent = t;
     this.btnVis.classList.toggle('on', V.state === 'on');
     const show = V.state === 'on' && !this.hidden && this.labelsEnabled;
     const list = show ? V.view.slice(0, 24) : [];
-    while (this.visLbls.length < list.length) { const e = el('div', 'vlbl', '<i></i><span class="a"></span><span class="b"></span>'); this.labelLayer.appendChild(e); this.visLbls.push(e); }
+    while (this.visLbls.length < list.length) { const e = el('div', 'vlbl', '<i></i><span class="a"></span><span class="b"></span><u class="arr">➤</u>'); this.labelLayer.appendChild(e); this.visLbls.push(e); }
+    let edges = 0;
     this.visLbls.forEach((e, i) => {
       const v = list[i]; if (!v) { e.style.display = 'none'; return; }
-      const p = this._project(v.relKm, view, fovDeg); if (!p.on) { e.style.display = 'none'; return; }
+      const p = this._project(v.relKm, view, fovDeg);
+      if (!p.on && (!v.sameSystem || ++edges > 6)) { e.style.display = 'none'; return; }       // off screen: only visitors in this system get an edge arrow
       e.style.display = 'block'; e.style.transform = `translate(${Math.round(p.x)}px,${Math.round(p.y)}px)`;
+      e.classList.toggle('edge', !p.on); e.classList.toggle('edgeR', !p.on && Math.cos(p.ang * Math.PI / 180) > 0.2);
+      if (!p.on) e.children[3].style.transform = `rotate(${p.ang}deg)`;
       const col = v.eng[2] > 0.1 ? '#7fb2ff' : v.eng[1] > 0.1 ? '#f4f4ff' : v.eng[0] > 0.1 ? '#ffae5c' : '#cfd3dc';
-      e.firstChild.style.borderColor = col; e.firstChild.style.boxShadow = `0 0 6px ${col}`;
+      e.firstChild.style.borderColor = col; e.firstChild.style.boxShadow = `0 0 6px ${col}`; e.children[3].style.color = col;
       const key = v.name + '|' + Math.round(v.distKm / (v.distKm > 1e7 ? 1e6 : v.distKm > 1e3 ? 100 : 1));
       if (e._k !== key) { e._k = key; e.children[1].textContent = v.name; e.children[2].textContent = v.distKm > 9.46e12 * 0.05 ? (v.distKm / 9.4607e12).toFixed(2) + ' ly' : v.distKm > 1.496e8 * 0.05 ? (v.distKm / 1.496e8).toFixed(2) + ' AU' : fmtDistance(v.distKm); }
     });

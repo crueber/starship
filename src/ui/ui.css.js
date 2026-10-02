@@ -65,6 +65,10 @@ button:hover{background:rgba(255,255,255,.16)}button.on{background:#ddd;color:#1
 .vis .item{display:flex;justify-content:space-between;gap:8px;padding:2px 0}.vis .item .m{color:var(--dim);white-space:nowrap}.vis .where{color:var(--faint);font-size:9px;margin:-1px 0 4px}
 .vlbl{position:absolute;left:0;top:0;pointer-events:none;color:#dfe3ee;font-size:10px;letter-spacing:.08em;white-space:nowrap;text-shadow:0 0 4px #000,0 0 2px #000;display:none}
 .vlbl i{position:absolute;left:-5px;top:-5px;width:8px;height:8px;border:1px solid #fff;transform:rotate(45deg)}
+.vlbl .arr{display:none;position:absolute;left:-8px;top:-8px;width:16px;height:16px;line-height:16px;text-align:center;font-size:12px;text-decoration:none}
+.vlbl.edge i{display:none}.vlbl.edge .arr{display:block}.vlbl.edgeR .a,.vlbl.edgeR .b{left:auto;right:12px;text-align:right}
+.vis .count{margin:2px 0 6px;font-size:11px}.vis .count b{font-size:20px;font-weight:400;color:#fff;margin-right:4px}.vis .count span{display:block;color:var(--dim);font-size:10px;margin-top:1px}
+.vis .item.you .n{color:#fff}.vis .item.you .m{color:#9fd0ff}
 .vlbl .a{position:absolute;left:10px;top:-12px}.vlbl .b{position:absolute;left:10px;top:0;color:#9aa0b0;font-size:9px}
 .well{position:absolute;left:50%;top:8px;transform:translateX(-50%);padding:3px 6px;pointer-events:none}.well canvas{display:block;width:420px;height:76px}
 @media(max-width:1000px){.well{display:none!important}}
