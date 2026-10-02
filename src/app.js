@@ -37,6 +37,7 @@ export async function boot() {
   const visitors = new Visitors(sim, cfg);
   const ui = new UI(sim, cfg, gfx, canvas, visitors);
   setMsg('ready', 1); await tick();
+  visitors.autoStart();
 
   let curSystem = null, userScale = cfg.visuals.renderScale;
   let gainCur = null, last = performance.now(), fpsT = 0, lowT = 0, highT = 0, okT = 0, fpsEma = 60, lastUp = 0, lastDown = 0, raiseWait = 3, prevWarp = false, probe = null, noDownUntil = 0;

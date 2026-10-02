@@ -13,6 +13,26 @@ export class Visitors {
     this.models = [];              // those close enough to draw as ships
     this._sendT = 0; this._prev = null; this._rerollAt = 0; this._room = null; this._ship = null; this._joinedAt = 0;
   }
+  // ── the pilot's remembered choice ('on' / 'off'); never chosen = on by default (config: visitors.autoJoin), if there is a network
+  _pref() { try { return localStorage.getItem('starship.visitors'); } catch (e) { return null; } }
+  remember(on) { try { localStorage.setItem('starship.visitors', on ? 'on' : 'off'); } catch (e) { /* private mode: not remembered */ } this.want = on; }
+  /** call once at start-up: join automatically if the pilot wants it and the network is there */
+  autoStart() {
+    const params = new URLSearchParams(location.search), force = params.get('visitors');
+    const pref = force === '1' ? 'on' : force === '0' ? 'off' : this._pref();
+    this.want = pref === 'on' || (pref === null && this.C.autoJoin !== false);
+    window.addEventListener('online', () => { if (this.want && this.state !== 'on' && this.state !== 'joining') this.join(); });
+    if (!this.want) return;
+    if (navigator.webdriver && force !== '1') return;                           // automated browsers (the test harnesses) never join by themselves
+    if (navigator.onLine === false) return;                                       // no network: stay off; the 'online' event above joins later
+    const first = pref === null;
+    this.join().then(() => {
+      if (first && this.state === 'on') {                                         // first time: say so once, then remember it so it is not repeated
+        this.sim.say('Visitors is on: you are connected peer to peer, so other visitors can see your network address. Press VISITORS to turn it off.', 12);
+        this.remember(true);
+      }
+    });
+  }
   get count() { return this.peers.size; }
   get rerollWait() { return Math.max(0, (this._rerollAt - performance.now()) / 1000); }
 
@@ -30,12 +50,12 @@ export class Visitors {
       room.onPeerLeave = (peerId) => { this.peers.delete(peerId); };
       this.state = 'on'; this._joinedAt = performance.now(); this._prev = null; this._sendT = 0;
     } catch (e) {
-      this.state = 'error'; this.error = 'Could not start peer-to-peer: ' + (e && e.message ? e.message : e);
+      this.state = 'error'; this._errAt = performance.now(); this.error = 'Could not start peer-to-peer: ' + (e && e.message ? e.message : e);
     }
   }
   leave() {
     try { if (this._room) this._room.leave(); } catch (e) { /* already gone */ }
-    this._room = null; this._ship = null; this.peers.clear(); this.view = []; this.models = []; this.state = 'off'; this.error = '';
+    this._room = null; this._ship = null; this.peers.clear(); this.view = []; this.models = []; this.state = 'off'; this.error = ''; this._relayChecked = false;
   }
   /** a fresh random callsign, at most once every cfg.visitors.rerollSec */
   reroll() {
@@ -60,14 +80,18 @@ export class Visitors {
 
   /** call once per frame */
   update(dt) {
-    if (this.state !== 'on') { this.view = []; this.models = []; return; }
+    if (this.state !== 'on') {
+      this.view = []; this.models = [];
+      if (this.state === 'error' && this.want && this._errAt && performance.now() - this._errAt > 60000 && navigator.onLine !== false) { this._errAt = 0; this.leave(); this.join(); }       // a wanted connection that failed is retried every minute
+      return;
+    }
     const sim = this.sim, now = performance.now();
     this._sendT -= dt;
     if (this._sendT <= 0 && this._ship) { this._sendT = 1 / this.C.sendHz; try { this._ship.send(this._message()); } catch (e) { /* ignore */ } }
     // no relay reachable after a few seconds: say so (the signalling relays are the only third parties involved)
     if (!this._relayChecked && now - this._joinedAt > 7000) {
       this._relayChecked = true;
-      try { const socks = this._mod.getRelaySockets ? Object.values(this._mod.getRelaySockets()) : []; if (socks.length && !socks.some((s) => s && s.readyState === 1)) { this.state = 'error'; this.error = 'Could not reach the matchmaking relays (offline, or blocked by a firewall).'; return; } } catch (e) { /* unknown: carry on */ }
+      try { const socks = this._mod.getRelaySockets ? Object.values(this._mod.getRelaySockets()) : []; if (socks.length && !socks.some((s) => s && s.readyState === 1)) { this.state = 'error'; this._errAt = now; this.error = 'Could not reach the matchmaking relays (offline, or blocked by a firewall).'; return; } } catch (e) { /* unknown: carry on */ }
     }
     const sys = sim.system, ctx = { sysId: sys ? sys.id : '', mySysPos: sys ? sim.sysPos() : [0, 0, 0], myPc: sim.shipPc(), refPos: (id) => { const b = sys ? sys.get(id) : null; return b ? b.positionAt(sim.jd) : null; } };
     const out = [];

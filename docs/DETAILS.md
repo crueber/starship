@@ -51,7 +51,7 @@ While time is compressed, a small watch dial in the top-left clock panel shows i
 
 ## Visitors (other people flying right now)
 
-**Opt-in and peer to peer.** Nothing connects until you press **VISITORS > JOIN**. Then your browser meets other visitors' browsers directly over WebRTC (the [Trystero](https://github.com/dmotz/trystero) library, with public Nostr relays used only to introduce browsers to each other; the relay list can be overridden in `config.js` > `visitors.relays`). Everyone using the same `visitors.appId` + `visitors.room` meets.
+**Peer to peer, on by default when there is a network.** The first time you open the page it joins automatically (and tells you so once); after that it remembers your choice in the browser: **VISITORS > LEAVE** turns it off for good, **JOIN** turns it back on. With no network connection it stays off and joins when the connection returns; a failed connection is retried every minute. `?visitors=0` / `?visitors=1` in the address overrides it for one visit, and `visitors.autoJoin: false` in `config.js` makes the default off. Automated browsers (the test harnesses) never join by themselves. Your browser meets other visitors' browsers directly over WebRTC (the [Trystero](https://github.com/dmotz/trystero) library, with public Nostr relays used only to introduce browsers to each other; the relay list can be overridden in `config.js` > `visitors.relays`). Everyone using the same `visitors.appId` + `visitors.room` meets.
 
 * **Privacy:** it is peer to peer, so the people you connect to can see your network address, the same as in a video call. There are no accounts and no server of ours; nothing is stored. The panel says this before you join.
 * **Callsigns:** a random registry-style name such as *ISV Calliope NCC-4471*, not editable; **RE-ROLL** gives a new one (at most every 2 s).
@@ -60,7 +60,7 @@ While time is compressed, a small watch dial in the top-left clock panel shows i
 * **In the system map:** visitors in your system appear as small blue diamonds that send out a ping ring every few seconds, each on its own schedule, so someone moving around catches the eye. The map caption counts them.
 * **How they look:** visitors in view get a small diamond with their callsign and distance (tinted by engine: orange rocket, white cruise, blue warp). Within 4 km they are drawn as ships, with lit engines. A visitor in your system who is off screen gets an arrow on the screen edge pointing to them, with their callsign. Everyone is shown in real time whatever time compression either of you is running, so at high compression they simply zip by.
 * **Limits:** up to 24 visitors; a visitor not heard from for 12 s is dropped. The matchmaking relays are public and can be flaky (the panel reports it if none can be reached); some strict networks block peer-to-peer connections altogether (there is no relay server for the data itself).
-* `npm run test:visitors` checks the network-free parts; `npm run test:visitors:e2e` launches two real browsers that must find each other over the public relays.
+* `npm run test:visitors:auto` checks the default-on / remembered-choice behaviour (needs internet). `npm run test:visitors` checks the network-free parts; `npm run test:visitors:e2e` launches two real browsers that must find each other over the public relays.
 
 ## System map
 

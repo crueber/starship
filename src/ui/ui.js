@@ -617,6 +617,7 @@ export class UI {
     } else {
       h += `<div class="me">you are<br><b>${V.callsign}</b></div><div class="row"><button id="vis-reroll" ${wait > 0 ? 'disabled' : ''}>RE-ROLL${wait > 0 ? ' · ' + Math.ceil(wait) + 's' : ''}</button><button id="vis-leave">LEAVE</button></div>`;
       const total = list.length + 1;
+      h += `<div class="fine" style="margin:-2px 0 7px">Visitors stays on next time too; LEAVE turns it off and remembers.</div>`;
       h += `<div class="count"><b>${st === 'joining' ? '…' : total}</b> ${total === 1 ? 'visitor' : 'visitors'} present<span>${st === 'joining' ? 'connecting…' : list.length ? `you + ${list.length} other${list.length > 1 ? 's' : ''}` : 'just you so far; others appear here as they arrive'}</span></div>`;
       h += `<div class="item you"><span class="n">${V.callsign}</span><span class="m">you</span></div><div class="where">${sim0.system ? 'in ' + sim0.system.name : 'interstellar space'}</div>`;
       for (const v of list.slice(0, 12)) h += `<div class="item"><span class="n">${v.name}</span><span class="m">${fmtD(v.distKm)}</span></div><div class="where">${v.sameSystem ? 'in this system' : v.sysName || 'elsewhere'}${v.eng[2] > 0.1 ? ' · warp' : v.eng[1] > 0.1 ? ' · cruise' : v.eng[0] > 0.1 ? ' · burning' : ''}</div>`;
@@ -624,8 +625,8 @@ export class UI {
     P.innerHTML = h + '</div>';
     const q = (id) => P.querySelector(id);
     if (q('#vis-x')) q('#vis-x').onclick = () => P.classList.remove('open');
-    if (q('#vis-join')) q('#vis-join').onclick = () => { V.join().then(() => this.renderVisitors(true)); this.renderVisitors(true); };
-    if (q('#vis-leave')) q('#vis-leave').onclick = () => { V.leave(); this.renderVisitors(true); };
+    if (q('#vis-join')) q('#vis-join').onclick = () => { V.remember(true); V.join().then(() => this.renderVisitors(true)); this.renderVisitors(true); };
+    if (q('#vis-leave')) q('#vis-leave').onclick = () => { V.remember(false); V.leave(); this.renderVisitors(true); };
     if (q('#vis-reroll')) q('#vis-reroll').onclick = () => { V.reroll(); this.renderVisitors(true); };
   }
   /** markers for visitors in view: a small diamond, the callsign, and the distance */

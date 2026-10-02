@@ -329,7 +329,8 @@ window.SIM_CONFIG = {
   },
 
   visitors: {
-    // Opt-in, peer to peer (WebRTC via the Trystero library). Nothing connects until you press VISITORS > JOIN. Public Nostr relays are used only to introduce browsers to each other.
+    // Peer to peer (WebRTC via the Trystero library). On by default when there is a network connection; the pilot's choice (VISITORS > JOIN / LEAVE) is remembered in the browser. Public Nostr relays are used only to introduce browsers to each other.
+    autoJoin: true,                // false = off until the pilot presses JOIN; ?visitors=0 / ?visitors=1 in the address overrides for one visit
     appId: "crueber.starship.v1",  // everyone using the same appId + room meets
     room: "local-stars",
     relays: [],                    // [] = the library's default public relays; or list your own "wss://..." Nostr relays
