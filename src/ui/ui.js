@@ -8,43 +8,38 @@ import { C_KMS } from '../sim/sim.js';
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 
 
-/** A quiet visual cue that time is running fast: film-strip ticks stream up both screen edges. Nothing at x1; it builds (more ticks, longer, faster, brighter) with every decade of time compression. */
+/**
+ * A quiet cue that time is running fast, built into the clock panel instead of the picture: a small watch dial whose hand speeds up with the time compression
+ * (a lazy second hand at x1, a spinning glowing disc at x10 000 000), and, much more faintly, a soft cool glow breathing in the corners of the screen.
+ */
 class TimeFx {
-  constructor() {
-    this.canvas = document.createElement('canvas'); this.canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0';
-    this.level = 0; this.off = 0; this.W = 0; this.H = 0; this.dpr = 1; this.bursts = [];
+  constructor(panel, cfg) {
+    this.cfg = cfg; this.level = 0; this.ang = 0; this.pulse = 0;
+    this.dial = document.createElement('canvas'); this.dial.width = this.dial.height = 88; this.dial.style.cssText = 'position:absolute;right:9px;top:50%;width:52px;height:52px;margin-top:-26px;pointer-events:none';
+    panel.style.position = 'absolute'; panel.appendChild(this.dial); panel.style.paddingRight = '74px';
+    this.glow = document.createElement('div'); this.glow.style.cssText = 'position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center, rgba(150,180,255,0) 55%, rgba(150,180,255,0.55) 135%)';
   }
   update(dt, K) {
-    const target = K > 2 ? Math.min(1, Math.log10(K) / 7) : 0;
+    const target = K > 1.5 ? Math.min(1, Math.log10(K) / 7) : 0;
     this.level += (target - this.level) * (1 - Math.exp(-dt / 0.8));
-    const L = this.level, cv = this.canvas;
-    const W = window.innerWidth, H = window.innerHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (L < 0.01) { if (this.on) { cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); this.on = false; } return; }
-    this.on = true;
-    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-    const speed = 28 + 1300 * L * L, gap = 22 - 9 * L;                       // px/s, px between ticks
-    this.off = (this.off + speed * dt) % (gap * 1000);
-    const cols = L < 0.35 ? 1 : L < 0.7 ? 2 : 3;
-    const fade = (y) => Math.min(1, y / (H * 0.18), (H - y) / (H * 0.18));  // ticks fade out toward the top and bottom of the screen
-    for (const side of [0, 1]) for (let c = 0; c < cols; c++) {
-      const x0 = side ? W - 10 - c * (13 + 5 * L) : 10 + c * (13 + 5 * L), dir = side ? -1 : 1;
-      const len = (5 + 22 * L) * (1 - 0.28 * c), a0 = (0.16 + 0.5 * L) * (1 - 0.3 * c);
-      const phase = (this.off * (1 + 0.23 * c) + c * 7.3) % gap;
-      for (let y = H + gap - phase; y > -gap; y -= gap) {
-        const f = fade(y); if (f <= 0) continue;
-        const tail = 6 + 90 * L * L * (0.5 + 0.5 * Math.sin(y * 12.9898 + c));    // a short motion streak below each tick at high compression
-        const grad = g.createLinearGradient(0, y, 0, y + tail); grad.addColorStop(0, `rgba(235,240,255,${a0 * f})`); grad.addColorStop(1, 'rgba(235,240,255,0)');
-        g.fillStyle = grad; g.fillRect(side ? x0 - len : x0, y, len, 1.3);
-        if (tail > 14) g.fillRect(x0 + (side ? -0.5 : len - 0.5), y, 0.9, tail * 0.9 > 1 ? tail * 0.9 : 1);
-      }
-    }
-    // at the very top of the range a faint sweeping band marks the clock racing
-    if (L > 0.72) {
-      const a = (L - 0.72) / 0.28 * 0.05, yy = ((performance.now() * (0.12 + 0.5 * L)) % (H + 200)) - 100;
-      const gr = g.createLinearGradient(0, yy - 90, 0, yy + 90); gr.addColorStop(0, 'rgba(200,215,255,0)'); gr.addColorStop(0.5, `rgba(200,215,255,${a})`); gr.addColorStop(1, 'rgba(200,215,255,0)');
-      g.fillStyle = gr; g.fillRect(0, yy - 90, W, 180);
-    }
+    const L = this.level, g = this.dial.getContext('2d'), R = 44;
+    // the hand: a slow second hand at real time; faster and faster, then a blur
+    const w = (2 * Math.PI / 60) * Math.pow(Math.max(K, 1), 0.55), wc = Math.min(w, 38);
+    this.ang = (this.ang + wc * dt) % (Math.PI * 2);
+    g.clearRect(0, 0, 88, 88); g.save(); g.translate(R, R);
+    const a0 = 0.35 + 0.5 * L;
+    g.strokeStyle = `rgba(225,232,255,${a0})`; g.lineWidth = 1.6; g.beginPath(); g.arc(0, 0, 36, 0, Math.PI * 2); g.stroke();
+    for (let i = 0; i < 12; i++) { const t = i / 12 * Math.PI * 2, r1 = i % 3 ? 31 : 28; g.beginPath(); g.moveTo(Math.cos(t) * r1, Math.sin(t) * r1); g.lineTo(Math.cos(t) * 34, Math.sin(t) * 34); g.stroke(); }
+    // the sweep behind the hand: a short comet at moderate speeds, a full glowing disc at the top of the range
+    const sweep = Math.min(Math.PI * 2, wc * 0.16 * (1 + 3 * L)), steps = 16;
+    for (let i = 0; i < steps; i++) { const f = i / steps, aa = this.ang - f * sweep; g.fillStyle = `rgba(190,210,255,${(1 - f * 0.8) * 0.9 * Math.min(1, w * 0.25) * (0.15 + 0.85 * L * L) / (1 + 5 * f)})`; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, 34, aa - sweep / steps - 0.01, aa + 0.01); g.closePath(); g.fill(); }
+    g.strokeStyle = `rgba(255,255,255,${0.7 + 0.3 * L})`; g.lineWidth = 2; g.lineCap = 'round'; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(this.ang - Math.PI / 2) * 32, Math.sin(this.ang - Math.PI / 2) * 32); g.stroke();
+    g.restore();
+    this.dial.style.filter = L > 0.3 ? `drop-shadow(0 0 ${2 + 6 * L}px rgba(170,195,255,${0.3 + 0.5 * L}))` : 'none';
+    // corner glow: invisible until the compression is large, then a slow breath
+    this.pulse += dt * (0.4 + 1.6 * L);
+    const gl = this.cfg.ui.timeGlow === false ? 0 : Math.max(0, L - 0.25) / 0.75;
+    this.glow.style.opacity = String(gl * (0.3 + 0.5 * L) * (0.7 + 0.3 * Math.sin(this.pulse * 2)));
   }
 }
 
@@ -63,6 +58,7 @@ export class UI {
     const R = this.root, sim = this.sim, cfg = this.cfg;
     this.tl = el('div', 'tl panel'); this.tl.style.padding = '7px 11px';
     this.tl.innerHTML = '<div class="loc" id="h-loc"></div><div class="sub" id="h-sub"></div><div class="sub" id="h-sub2"></div>';
+    this.timeFx = new TimeFx(this.tl, cfg); this.root.appendChild(this.timeFx.glow);
     this.tr = el('div', 'tr');
     this.chips = {};
     for (const k of ['TOUR', 'FREE', 'AUTO', 'WARP']) { const c = el('div', 'chip', k); this.chips[k] = c; this.tr.appendChild(c); }
@@ -113,7 +109,6 @@ export class UI {
       <div style="margin-top:8px;color:#8a8a8a">Speed limit inside a heliopause is ${cfg.ship.maxSublightC} c. Beyond it the warp drive steps 1 c → ${cfg.warp.steps[cfg.warp.steps.length - 1].toLocaleString('en-US')} c and the ship brakes itself to sub-light at the next heliopause. Nothing can be landed on; every body has a safe-orbit wall.</div>`);
     this.labelLayer = el('div'); this.labelLayer.style.cssText = 'position:absolute;inset:0;pointer-events:none';
     this.well = el('div', 'well panel', '<canvas width="760" height="64"></canvas>'); this.wellCv = this.well.querySelector('canvas');
-    this.timeFx = new TimeFx(); this.root.appendChild(this.timeFx.canvas);
     this.selP = el('div', 'selp panel', ''); this.selKey = null;
     this.markSel = el('div', 'mark', '<div class="box"></div><div class="arr"></div><div class="tx"></div>'); this.markHome = el('div', 'mark home', '<div class="arr"></div><div class="tx"></div>');
     this.labelLayer.append(this.markSel, this.markHome);

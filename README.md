@@ -35,7 +35,7 @@ One slider runs all three: orange for rocket, white for cruise, blue for warp.
 2. Sit back. A tour of the Solar System starts by itself. There is also a tour of the nearby stars (the **STARS** button), and each tour can run **FAST** (time speeds up automatically) or **SLOW** (you pick the speed).
 3. Press **T** to take the helm, **N** to pick somewhere to go, **P** to let the autopilot fly.
 
-When time is racing, little ticks stream up both edges of the screen, faster the more you speed it up.
+When time is racing, a little clock dial in the corner spins up to show it.
 
 Tip: it makes a good wallpaper. Press **H** to hide the interface and leave it on tour.
 

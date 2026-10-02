@@ -47,7 +47,7 @@ Two kinds of tour (bottom-right, **TOUR** row), each at two paces:
 * **FAST**: time compression is automatic (fast while travelling, slowed to a pretty orbit speed at each stop).
 * **SLOW**: you set the time compression with the TIME buttons; stops last twice as long. Pressing a TIME button during a fast tour switches it to slow, and AUTO switches it back. The FAST / SLOW button changes the pace live.
 
-While time is compressed, quiet ticks stream up both edges of the screen: none at ×1, then more, longer, faster and brighter with every decade (and chevrons after the clock readout), so you can always tell the clock is racing.
+While time is compressed, a small watch dial in the top-left clock panel shows it: a lazy second hand at ×1, then a hand that spins faster with every decade, trailing a glowing sweep that fills the whole dial at the top of the range. Chevrons follow the clock readout, and at very high compression a faint cool glow breathes in the corners of the screen (`ui.timeGlow` turns that off).
 
 ## Gravity-well gauge
 
