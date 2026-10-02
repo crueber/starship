@@ -145,6 +145,7 @@ window.SIM_CONFIG = {
       orbital: [0.1, 0.5, 1, 3, 7.8, 11.2, 30, 60],                 // km/s   (7.8 = low-Earth-orbit speed, 11.2 = Earth escape, 30 = Earth's speed round the Sun)
       cruise: [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 0.5, 0.8],       // × c    (0.1 % … 80 %)
     },
+    maxOrbitRateRadPerSec: 0.15,  // while orbiting under high time compression the ship's visible lap rate is held to this (0.15 rad/s = one lap every 42 s) so the view stays calm
     maneuverAccelMs2: 1000,       // rocket acceleration used for orbit changes, orbit insertion and orbital-regime throttling (m/s²; 1000 ≈ 100 g torch drive)
     maxTurnDegPerSec: 22,         // fastest the flight computer slews the ship
     attitudeGain: 0.35,           // 1/s: turn rate commanded per radian of pointing error (low = long, gentle approach with no overshoot)

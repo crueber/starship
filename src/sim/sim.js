@@ -77,7 +77,11 @@ export class Sim {
   }
   _applyOrbit(dtSim) {
     const o = this.orbit;
-    o.theta += o.omega * dtSim;
+    // at high time compression the ship would lap the planet many times per frame (pure aliasing: a strobing, spinning picture). Beyond a comfortable apparent rate the orbital phase simply
+    // advances at that rate: the shape of the orbit and the bodies' own motion are untouched, only where on the circle the ship happens to be is no longer tied to the clock.
+    let d = o.omega * dtSim; const lim = this.cfg.ship.maxOrbitRateRadPerSec * Math.max(this._dtFrame, 1 / 240);
+    if (Math.abs(d) > lim) d = Math.sign(d) * lim;
+    o.theta += d;
     this._applyOrbitState();
   }
   _applyOrbitState() {
